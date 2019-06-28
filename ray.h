@@ -7,7 +7,7 @@ namespace pk
 
 class ray {
 public:
-    ray();
+    ray() = default;
     ray( const ray& rhs ) :
         origin(rhs.origin),
         direction(rhs.direction)

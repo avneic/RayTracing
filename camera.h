@@ -17,7 +17,7 @@ namespace pk {
         }
 
         //ray getRay(float u, float v) const { return ray(origin, upper_left_corner + (u*horizontal) + (v*vertical) - origin); }
-        ray getRay(float u, float v) const { return ray(origin, left_corner + (u*horizontal) + (v*vertical)); }
+        ray getRay(float u, float v) const { return ray(origin, left_corner + (u*horizontal) + (v*vertical) - origin); }
 
         vec3 origin;
         vec3 left_corner;
