@@ -1,0 +1,38 @@
+﻿---
+BasedOnStyle: WebKit
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+AlignTrailingComments: true
+BreakBeforeBraces: Custom
+BreakConstructorInitializers: AfterColon
+BraceWrapping:
+  AfterClass: false
+  AfterControlStatement: false
+  AfterEnum: false
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: false
+  BeforeCatch: false
+  BeforeElse: false
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
+Cpp11BracedListStyle: false
+DerivePointerAlignment: true
+FixNamespaceComments: true
+IncludeBlocks: Regroup
+IndentCaseLabels: true
+Language: Cpp
+MaxEmptyLinesToKeep: 2
+PointerAlignment: Right
+ReflowComments: true
+SortIncludes: true
+SpaceAfterTemplateKeyword: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesInContainerLiterals: true
+SpacesInParentheses: true
+SpacesInSquareBrackets: true
+TabWidth: 4
+UseTab: Never
+
+...
