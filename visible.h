@@ -33,7 +33,7 @@ public:
 
         for (IVisible* obj : objects) {
             hit_info tmp;
-            if (obj->hit( r, 0, std::numeric_limits<float>::max(), &tmp )) {
+            if (obj->hit( r, min, max, &tmp )) {
                 rval = true;
                 hit = tmp;
             }

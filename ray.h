@@ -8,7 +8,12 @@ namespace pk
 class ray {
 public:
     ray();
+    ray( const ray& rhs ) :
+        origin(rhs.origin),
+        direction(rhs.direction)
+    {}
     ray( const vec3& origin, const vec3& direction ) { this->origin = origin, this->direction = direction; }
+
     vec3 point( float distance ) const { return origin + (direction * distance); }
 
     vec3 origin;
