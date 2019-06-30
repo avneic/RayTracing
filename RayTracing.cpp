@@ -6,9 +6,9 @@
 #include "ray.h"
 #include "sphere.h"
 #include "vec3.h"
+#include "utils.h"
 
 #include <limits>
-#include <random>
 #include <stdint.h>
 #include <stdio.h>
 #include <string>
@@ -29,27 +29,26 @@ const unsigned int MAX_RAY_DEPTH = 50;
 static int  _generateTestPPM( const std::string& filename, const Scene& scene, const Camera& camera );
 static vec3 _color( const ray& r, const Scene& scene, float depth );
 static vec3 _background( const ray& r );
-static vec3 _randomInUnitSphere();
-
-static std::random_device                    rd;
-static std::mt19937                          gen( rd() );
-static std::uniform_real_distribution<float> random( 0.0f, 1.0f );
 
 
 int main()
 {
     Scene scene;
     scene.objects.push_back( new Sphere( vec3( 0, -100.5f, -1 ), 100.0f, new Diffuse( vec3( 0.8f, 0.8f, 0.0f ) ) ) );
-    scene.objects.push_back( new Sphere( vec3( 1, 0, -1 ), 0.5f, new Metal( vec3( 0.8f, 0.6f, 0.2f ), 0.0f ) ) );
-    //scene.objects.push_back( new Sphere( vec3( -1, 0, -1 ), 0.5f, new Glass( 1.5f ) ) );
     scene.objects.push_back( new Sphere( vec3( -1, 0, -1 ), -0.45f, new Glass( 1.5f ) ) );
     scene.objects.push_back( new Sphere( vec3( 0, 0, -1 ), 0.5f, new Diffuse( vec3( 0.1f, 0.2f, 0.5f ) ) ) );
+    //scene.objects.push_back( new Sphere( vec3( -1, 0, -1 ), 0.5f, new Glass( 1.5f ) ) );
+    scene.objects.push_back( new Sphere( vec3( 1, 0, -1 ), 0.5f, new Metal( vec3( 0.8f, 0.6f, 0.2f ), 0.0f ) ) );
 
-    vec3 origin(0, 0, 0);
+    vec3 origin(3, 3, 2);
     vec3 lookat(0, 0, -1);
     vec3 up(0, 1, 0);
+    float vfov = 20;
+    float aspect = float(COLS) / float(ROWS);
+    float aperture = 2.0f;
+    float focusDistance = (origin - lookat).length();
 
-    Camera camera( 90, float( COLS ) / float( ROWS ), origin, up, lookat );
+    Camera camera( vfov, aspect, aperture, focusDistance, origin, up, lookat );
 
     return _generateTestPPM( "foo.ppm", scene, camera );
 }
@@ -76,8 +75,8 @@ static int _generateTestPPM( const std::string& filename, const Scene& scene, co
 
             vec3 color( 0, 0, 0 );
             for ( int s = 0; s < NUM_AA_SAMPLES; s++ ) {
-                float u = float( x + random( gen ) ) / float( COLS );
-                float v = float( y + random( gen ) ) / float( ROWS );
+                float u = float( x + random() ) / float( COLS );
+                float v = float( y + random() ) / float( ROWS );
                 ray   r = camera.getRay( u, v );
                 color += _color( r, scene, 0 );
             }
@@ -110,7 +109,7 @@ static vec3 _color( const ray& r, const Scene& scene, float depth )
         vec3 normal = ( r.point( hit.t ) - vec3( 0, 0, -1 ) ).normalized();
         return 0.5f * vec3( normal.x + 1, normal.y + 1, normal.z + 1 );
 #elif defined( DIFFUSE_SHADE )
-        vec3 target = hit.point + hit.normal + _randomInUnitSphere();
+        vec3 target = hit.point + hit.normal + randomInUnitSphere();
         return 0.5f * _color( ray( hit.point, target - hit.point ), scene );
 #else
         ray  scattered;
@@ -138,12 +137,3 @@ static vec3 _background( const ray& r )
     return ( 1.0f - t ) * vec3( 1.0f, 1.0f, 1.0f ) + t * vec3( 0.5f, 0.7f, 1.0f );
 }
 
-static vec3 _randomInUnitSphere()
-{
-    vec3 point;
-    do {
-        point = 2.0f * vec3( random( gen ), random( gen ), random( gen ) ) - vec3( 1, 1, 1 );
-    } while ( point.squared_length() >= 1.0 );
-
-    return point;
-}
