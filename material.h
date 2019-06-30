@@ -46,4 +46,16 @@ public:
     float blur;
 };
 
+class Glass : virtual public IMaterial {
+public:
+    Glass() :
+        refractionIndex(1.0f) {}
+    Glass(float ri) :
+        refractionIndex(ri) {}
+
+    virtual bool scatter( const ray& r, const hit_info& hit, vec3* attenuation, ray* scattered ) const;
+
+    float refractionIndex;
+};
+
 } // namespace pk

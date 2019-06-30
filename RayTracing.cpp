@@ -36,9 +36,11 @@ int main()
 {
     Scene scene;
     scene.objects.push_back( new Sphere( vec3( 0, -100.5f, -1 ), 100.0f, new Diffuse( vec3( 0.8f, 0.8f, 0.0f ) ) ) );
-    scene.objects.push_back( new Sphere( vec3( 1, 0, -1 ), 0.5f, new Metal( vec3( 0.8f, 0.6f, 0.2f ), 1.0f ) ) );
-    scene.objects.push_back( new Sphere( vec3( -1, 0, -1 ), 0.5f, new Metal( vec3( 0.8f, 0.8f, 0.8f ), 0.3f ) ) );
-    scene.objects.push_back( new Sphere( vec3( 0, 0, -1 ), 0.5f, new Diffuse( vec3( 0.8f, 0.3f, 0.3f ) ) ) );
+    scene.objects.push_back( new Sphere( vec3( 1, 0, -1 ), 0.5f, new Metal( vec3( 0.8f, 0.6f, 0.2f ), 0.0f ) ) );
+    //scene.objects.push_back( new Sphere( vec3( -1, 0, -1 ), 0.5f, new Metal( vec3( 0.8f, 0.8f, 0.8f ), 0.3f ) ) );
+    scene.objects.push_back( new Sphere( vec3( 0, 0, -1 ), 0.5f, new Diffuse( vec3( 0.1f, 0.2f, 0.5f ) ) ) );
+    //scene.objects.push_back( new Sphere( vec3( -1, 0, -1 ), 0.5f, new Glass( 1.5f ) ) );
+    scene.objects.push_back( new Sphere( vec3( -1, 0, -1 ), -0.45f, new Glass( 1.5f ) ) );
 
     Camera camera;
 
