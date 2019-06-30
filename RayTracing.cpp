@@ -14,13 +14,17 @@
 #include <string>
 using namespace pk;
 
+#define ARRAY_SIZE( x ) ( sizeof( x ) / sizeof( x[ 0 ] ) )
+
+const unsigned int COLS = 200;
+const unsigned int ROWS = 100;
+
 // Anti-aliasing
-#define NUM_AA_SAMPLES 100
+const unsigned int NUM_AA_SAMPLES = 100;
 
 // Num bounces per ray
-#define MAX_RAY_DEPTH 50
+const unsigned int MAX_RAY_DEPTH = 50;
 
-#define ARRAY_SIZE( x ) ( sizeof( x ) / sizeof( x[ 0 ] ) )
 
 static int  _generateTestPPM( const std::string& filename, const Scene& scene, const Camera& camera );
 static vec3 _color( const ray& r, const Scene& scene, float depth );
@@ -37,21 +41,21 @@ int main()
     Scene scene;
     scene.objects.push_back( new Sphere( vec3( 0, -100.5f, -1 ), 100.0f, new Diffuse( vec3( 0.8f, 0.8f, 0.0f ) ) ) );
     scene.objects.push_back( new Sphere( vec3( 1, 0, -1 ), 0.5f, new Metal( vec3( 0.8f, 0.6f, 0.2f ), 0.0f ) ) );
-    //scene.objects.push_back( new Sphere( vec3( -1, 0, -1 ), 0.5f, new Metal( vec3( 0.8f, 0.8f, 0.8f ), 0.3f ) ) );
-    scene.objects.push_back( new Sphere( vec3( 0, 0, -1 ), 0.5f, new Diffuse( vec3( 0.1f, 0.2f, 0.5f ) ) ) );
     //scene.objects.push_back( new Sphere( vec3( -1, 0, -1 ), 0.5f, new Glass( 1.5f ) ) );
     scene.objects.push_back( new Sphere( vec3( -1, 0, -1 ), -0.45f, new Glass( 1.5f ) ) );
+    scene.objects.push_back( new Sphere( vec3( 0, 0, -1 ), 0.5f, new Diffuse( vec3( 0.1f, 0.2f, 0.5f ) ) ) );
 
-    Camera camera;
+    vec3 origin(0, 0, 0);
+    vec3 lookat(0, 0, -1);
+    vec3 up(0, 1, 0);
+
+    Camera camera( 90, float( COLS ) / float( ROWS ), origin, up, lookat );
 
     return _generateTestPPM( "foo.ppm", scene, camera );
 }
 
 static int _generateTestPPM( const std::string& filename, const Scene& scene, const Camera& camera )
 {
-    const unsigned int COLS = 200;
-    const unsigned int ROWS = 100;
-
     FILE*   file = nullptr;
     errno_t err  = fopen_s( &file, filename.c_str(), "w" );
     if ( !file || err != 0 ) {
@@ -112,7 +116,7 @@ static vec3 _color( const ray& r, const Scene& scene, float depth )
         ray  scattered;
         vec3 attenuation;
         if ( depth < MAX_RAY_DEPTH && hit.material && hit.material->scatter( r, hit, &attenuation, &scattered ) ) {
-            return attenuation * _color( scattered, scene, depth+1 );
+            return attenuation * _color( scattered, scene, depth + 1 );
         } else {
             return vec3( 0, 0, 0 );
         }
@@ -131,7 +135,7 @@ static vec3 _background( const ray& r )
     //static vec3 color( random( gen ), random( gen ), random( gen ) );
     //return ( 1.0f - t ) * vec3( 1.0f, 1.0f, 1.0f ) + t * color;
 
-    return ( 1.0f - t ) * vec3( 1.0f, 1.0f, 1.0f ) + t * vec3(0.5f, 0.7f, 1.0f);
+    return ( 1.0f - t ) * vec3( 1.0f, 1.0f, 1.0f ) + t * vec3( 0.5f, 0.7f, 1.0f );
 }
 
 static vec3 _randomInUnitSphere()

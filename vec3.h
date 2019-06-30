@@ -53,6 +53,12 @@ public:
     inline vec3  normalized() const;
 
     inline float dot( const vec3 &v2 ) const { return x * v2.x + y * v2.y + z * v2.z; }
+    inline vec3  cross( const vec3 &v2 ) const
+    {
+        return vec3( ( y * v2.z - z * v2.y ),
+            ( -( x * v2.z - z * v2.x ) ),
+            ( x * v2.y - y * v2.x ) );
+    }
 
     //float e[3];
     float x;
