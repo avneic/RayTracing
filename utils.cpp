@@ -1,11 +1,13 @@
 #include "utils.h"
+#include <iostream>
 #include <random>
 
 namespace pk
 {
 static std::random_device                    _rd;
 static std::mt19937                          _gen( _rd() );
-static std::uniform_real_distribution<float> _random( 0.0f, 1.0f );
+//static std::uniform_real_distribution<float> _random( 0.0f, 1.0f );
+static std::uniform_real_distribution<float> _random( 0.0f, 0.9999f );
 
 float random()
 {

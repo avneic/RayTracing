@@ -30,17 +30,28 @@ public:
         horizontal = 2 * halfWidth * focusDistance * u;
         vertical   = 2 * halfHeight * focusDistance * v;
 
-        //printf( "Camera: fov %f aspect %f aperture %f (%f, %f, %f) -> (%f, %f, %f) (%f : %f)\n",
-        //    vfov, aspect, aperture, origin.x, origin.y, origin.z, lookat.x, lookat.y, lookat.z, focusDistance, ( origin - lookat ).length() );
+        printf( "Camera: fov %f aspect %f aperture %f (%f, %f, %f) -> (%f, %f, %f) (%f : %f)\n",
+            vfov, aspect, aperture, origin.x, origin.y, origin.z, lookat.x, lookat.y, lookat.z, focusDistance, ( origin - lookat ).length() );
     }
+
+    Camera( const Camera& rhs ) :
+        origin(rhs.origin),
+        leftCorner(rhs.leftCorner),
+        horizontal(rhs.horizontal),
+        vertical(rhs.vertical),
+        u(rhs.u),
+        v(rhs.v),
+        w(rhs.w),
+        lensRadius(rhs.lensRadius)
+    {}
 
     ray getRay( float s, float t ) const
     {
-        //return ray( origin, leftCorner + ( s * horizontal ) + ( t * vertical ) - origin );
+        return ray( origin, leftCorner + ( s * horizontal ) + ( t * vertical ) - origin );
 
-        vec3 rand   = lensRadius * randomOnUnitDisk();
-        vec3 offset = u * rand.x + v * rand.y;
-        return ray( origin + offset, leftCorner + ( s * horizontal ) + ( t * vertical ) - origin - offset );
+        //vec3 rand   = lensRadius * randomOnUnitDisk();
+        //vec3 offset = u * rand.x + v * rand.y;
+        //return ray( origin + offset, leftCorner + ( s * horizontal ) + ( t * vertical ) - origin - offset );
     }
 
     vec3  origin;

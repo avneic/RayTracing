@@ -14,7 +14,7 @@ public:
     {}
     ray( const vec3& origin, const vec3& direction ) { this->origin = origin, this->direction = direction; }
 
-    vec3 point( float distance ) const { return origin + (direction * distance); }
+    vec3 point( float distance ) const { return origin + (distance * direction); }
 
     vec3 origin;
     vec3 direction;
