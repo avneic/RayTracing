@@ -47,11 +47,9 @@ public:
 
     ray getRay( float s, float t ) const
     {
-        //return ray( origin, leftCorner + ( s * horizontal ) + ( t * vertical ) - origin );
-
         vec3 rand   = lensRadius * randomOnUnitDisk();
         vec3 offset = u * rand.x + v * rand.y;
-        return ray( origin + offset, leftCorner + ( s * horizontal ) + ( t * vertical ) - origin - offset );
+        return ray( origin + offset, leftCorner + ( s * horizontal ) + ( (1.0f - t) * vertical ) - origin - offset );
     }
 
     vec3  origin;
