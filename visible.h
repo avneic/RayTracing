@@ -12,16 +12,16 @@ namespace pk
 class IMaterial;
 
 typedef struct _hit {
-    float      t;
+    float      distance;
     vec3       point;
     vec3       normal;
     IMaterial* material;
 
     _hit() :
-        t(0.0f),
-        point(0, 0, 0),
-        normal(0, 0, 0),
-        material(nullptr) {}
+        distance( 0.0f ),
+        point( 0, 0, 0 ),
+        normal( 0, 0, 0 ),
+        material( nullptr ) {}
 } hit_info;
 
 class IVisible {
@@ -40,12 +40,14 @@ public:
     {
         bool     rval = false;
         hit_info hit;
+        float    closestSoFar = max;
 
         for ( IVisible* obj : objects ) {
             hit_info tmp;
-            if ( obj->hit( r, min, max, &tmp ) ) {
-                rval = true;
-                hit  = tmp;
+            if ( obj->hit( r, min, closestSoFar, &tmp ) ) {
+                rval         = true;
+                closestSoFar = tmp.distance;
+                hit          = tmp;
             }
         }
 
