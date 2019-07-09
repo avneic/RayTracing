@@ -51,6 +51,9 @@
     <ClInclude Include="threadpool.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="perf_timer.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -72,6 +75,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="threadpool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="perf_timer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

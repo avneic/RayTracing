@@ -5,6 +5,7 @@
 #include "camera.h"
 #include "material.h"
 #include "msgqueue.h"
+#include "perf_timer.h"
 #include "ray.h"
 #include "sphere.h"
 #include "threadpool.h"
@@ -24,13 +25,11 @@ using namespace pk;
 //#define DIFFUSE_SHADE
 //#define NORMAL_SHADE
 
-//const unsigned int COLS = 1200;
-//const unsigned int ROWS = 800;
 const unsigned int COLS = 1280;
 const unsigned int ROWS = 1280;
 
 // Anti-aliasing
-const unsigned int NUM_AA_SAMPLES = 10;
+const unsigned int NUM_AA_SAMPLES = 50;
 
 // Num bounces per ray
 const unsigned int MAX_RAY_DEPTH = 50;
@@ -49,6 +48,7 @@ typedef struct _RenderThreadContext {
     uint32_t               xOffset;
     uint32_t               yOffset;
     std::atomic<uint32_t>* blockCount;
+    uint32_t               totalBlocks;
     bool                   debug;
 
     _RenderThreadContext() :
@@ -80,8 +80,8 @@ int main( int argc, char** argv )
     float vfov   = 20;
     float aspect = float( COLS ) / float( ROWS );
 
-    //float focusDistance = (origin - lookat).length();
-    float focusDistance = 10.0f;
+    float focusDistance = (origin - lookat).length();
+    //float focusDistance = 10.0f;
     float aperture      = 0.1f;
 
     Camera camera( vfov, aspect, aperture, focusDistance, origin, up, lookat );
@@ -91,7 +91,7 @@ int main( int argc, char** argv )
     frameBuffer           = new uint32_t[ ROWS * COLS ];
     memset( frameBuffer, 0xCC, sizeof( uint32_t ) * ROWS * COLS );
 
-    int numThreads = std::thread::hardware_concurrency();
+    int numThreads = std::thread::hardware_concurrency() - 1;
     if ( args.cmdOptionExists( "-t" ) ) {
         const std::string& arg = args.getCmdOption( "-t" );
         numThreads             = std::stoi( arg );
@@ -100,7 +100,7 @@ int main( int argc, char** argv )
     int blockSize = 64;
     if ( args.cmdOptionExists( "-b" ) ) {
         const std::string& arg = args.getCmdOption( "-b" );
-        blockSize             = std::stoi( arg );
+        blockSize              = std::stoi( arg );
     }
 
     bool debug = false;
@@ -127,11 +127,6 @@ static int _renderScene( const std::string& filename, const Scene& scene, const 
         return -1;
     }
 
-    // Print PPM header
-    fprintf( file, "P3\n" );
-    fprintf( file, "%d %d\n", COLS, ROWS );
-    fprintf( file, "255\n" );
-
     // Spin up a pool of render threads, one per tile
     uint32_t numThreads = std::thread::hardware_concurrency();
     uint32_t numBlocks  = ( ROWS / blockSize ) * ( ROWS / blockSize );
@@ -155,6 +150,7 @@ static int _renderScene( const std::string& filename, const Scene& scene, const 
             ctx->xOffset             = xOffset;
             ctx->yOffset             = yOffset;
             ctx->blockCount          = &blockCount;
+            ctx->totalBlocks         = numBlocks;
             ctx->debug               = debug;
 
             threadPoolSubmitJob( _renderThread, ctx );
@@ -174,6 +170,10 @@ static int _renderScene( const std::string& filename, const Scene& scene, const 
     delete[] contexts;
 
     // Write to disk
+    fprintf( file, "P3\n" );
+    fprintf( file, "%d %d\n", COLS, ROWS );
+    fprintf( file, "255\n" );
+
     for ( uint32_t y = 0; y < ROWS; y++ ) {
         for ( uint32_t x = 0; x < COLS; x++ ) {
             uint32_t rgb = frameBuffer[ y * COLS + x ];
@@ -228,8 +228,11 @@ static void _renderThread( const void* context )
     }
 
     // Notify caller that we have completed one work item
-    std::atomic<uint32_t>* blockCount = ctx->blockCount;
-    uint32_t               count      = blockCount->fetch_add( 1 );
+    if (ctx->blockID == ctx->totalBlocks - 1) {
+        std::atomic<uint32_t>* blockCount = ctx->blockCount;
+        //uint32_t               count = blockCount->fetch_add(1);
+        blockCount->exchange(ctx->totalBlocks);
+    }
 
     return;
 }

@@ -1,8 +1,6 @@
 #include "msgqueue.h"
 
-//#include "log.h"
-//#include "result.h"
-//#include "types.h"
+#include "perf_timer.h"
 #include "utils.h"
 
 #include <atomic>
@@ -52,7 +50,7 @@ static _queue_t   s_queues[ MAX_MSG_QUEUES ];
 static bool _valid( queue_t queue );
 static bool _queue_is_empty( queue_t queue );
 static bool _queue_is_full( queue_t queue );
-static void _queue_push_back( _queue_t* p_queue, const void* p_msg );
+static bool _queue_push_back( _queue_t* p_queue, const void* p_msg );
 static void _queue_pop_front( _queue_t* p_queue, void* p_msg );
 
 
@@ -121,6 +119,34 @@ result queue_send( queue_t queue, const void* msg )
     p_queue->notification.notify_one();
 
     return R_OK;
+}
+
+
+result queue_send_blocking( queue_t queue, const void* msg, uint32_t timeout_ms )
+{
+    if ( !_valid( queue ) )
+        return R_FAIL;
+
+    _queue_t* p_queue = &s_queues[ queue ];
+
+    PerfTimer timer;
+    result    rval = R_OK;
+
+    p_queue->mutex.lock();
+    while ( !_queue_push_back( p_queue, msg ) ) {
+        // Block calling thread while queue is full; release lock so receiver can receive
+        p_queue->mutex.unlock();
+        delay( 10 );
+        if ( timer.ElapsedMilliseconds() >= timeout_ms ) {
+            rval = R_TIMEOUT;
+            break;
+        }
+        p_queue->mutex.lock();
+    };
+    p_queue->notification.notify_one();
+    p_queue->mutex.unlock();
+
+    return rval;
 }
 
 
@@ -237,9 +263,11 @@ size_t queue_size( queue_t queue )
 // Private methods; these assume the queue mutex is already held
 //
 
-static void _queue_push_back( _queue_t* p_queue, const void* p_msg )
+static bool _queue_push_back( _queue_t* p_queue, const void* p_msg )
 {
-    assert( p_queue->used < p_queue->length );
+    if ( p_queue->used >= p_queue->length ) {
+        return false;
+    }
 
     memcpy( p_queue->tail, p_msg, p_queue->msg_size ); // problem: need to call placement_new ctor()?
     p_queue->tail += p_queue->msg_size;
@@ -249,6 +277,8 @@ static void _queue_push_back( _queue_t* p_queue, const void* p_msg )
 
     if ( p_queue->tail >= p_queue->msgs + ( p_queue->msg_size * p_queue->length ) )
         p_queue->tail = p_queue->msgs;
+
+    return true;
 }
 
 

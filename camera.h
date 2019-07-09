@@ -30,7 +30,7 @@ public:
         horizontal = 2 * halfWidth * focusDistance * u;
         vertical   = 2 * halfHeight * focusDistance * v;
 
-        printf( "Camera: fov %f aspect %f aperture %f (%f, %f, %f) -> (%f, %f, %f) (%f : %f)\n",
+        printf( "Camera: fov %4.1f aspect %4.1f aperture %4.1f (%f, %f, %f) -> (%f, %f, %f) (%f : %f)\n",
             vfov, aspect, aperture, origin.x, origin.y, origin.z, lookat.x, lookat.y, lookat.z, focusDistance, ( origin - lookat ).length() );
     }
 

@@ -152,6 +152,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="camera.h" />
+    <ClInclude Include="perf_timer.h" />
     <ClInclude Include="threadpool.h" />
     <ClInclude Include="material.h" />
     <ClInclude Include="matrix.h" />
@@ -165,6 +166,12 @@
     <ClInclude Include="visible.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="perf_timer.cpp">
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch.h</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">pch.h</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">pch.h</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pch.h</ForcedIncludeFiles>
+    </ClCompile>
     <ClCompile Include="threadpool.cpp">
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch.h</ForcedIncludeFiles>
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">pch.h</ForcedIncludeFiles>

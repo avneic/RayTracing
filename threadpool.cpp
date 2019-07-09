@@ -46,7 +46,7 @@ typedef struct _thread_t {
 
 static std::vector<thread_t> s_threads;
 static queue_t               s_job_queue     = INVALID_QUEUE;
-static const int             MAX_QUEUE_DEPTH = 1024;
+static const int             MAX_QUEUE_DEPTH = 512;
 
 static void _threadWorker( void* context );
 
@@ -79,7 +79,8 @@ bool threadPoolSubmitJob( jobFunction function, void* context )
     Job job;
     job.function = function;
     job.context  = context;
-    result rval  = queue_send( s_job_queue, &job );
+    //result rval  = queue_send( s_job_queue, &job );
+    result rval  = queue_send_blocking( s_job_queue, &job );
 
     //printf( "_submitJob: 0x%p( 0x%p ) %d (%zd)\n", function, context, rval, queue_size( s_job_queue ) );
 
