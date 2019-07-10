@@ -85,8 +85,8 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="test.cu">
+    <CudaCompile Include="test.cu">
       <Filter>Source Files</Filter>
-    </None>
+    </CudaCompile>
   </ItemGroup>
 </Project>
