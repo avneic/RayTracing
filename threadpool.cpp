@@ -196,7 +196,7 @@ static void _threadWorker( void* context )
             return;
         }
 
-        if ( R_TIMEOUT != queue_receive( tp->job_queue, &job, sizeof( job ), std::numeric_limits<unsigned int>::max() ) ) {
+        if ( R_TIMEOUT != queue_receive( tp->job_queue, &job, sizeof( job ), (std::numeric_limits<unsigned int>::max)() ) ) {
             if ( job.function ) {
                 uint32_t tid = uint32_t( thread->pool << 16 | thread->tid );
                 job.function( tid, job.context );

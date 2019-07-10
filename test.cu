@@ -69,7 +69,6 @@ typedef struct {
 static void _cpu_add_thread( uint32_t tid, const void* context )
 {
     thread_context_t* ctx = (thread_context_t*)context;
-    //printf( "thread [%d] [%d : %d]\n", tid, ctx->start, ctx->start + ctx->num );
 
     add( ctx->num, ctx->x, ctx->y );
 
@@ -149,11 +148,11 @@ void testCUDA()
 {
     int numDevices = 0;
     int device = 0;
-    cudaGetDeviceCount( &numDevices );
+    CHECK_CUDA(cudaGetDeviceCount( &numDevices ));
     printf("%d CUDA devices found.\n", numDevices);
 
     int numSMs;
-    cudaDeviceGetAttribute(&numSMs, cudaDevAttrMultiProcessorCount, device);
+    CHECK_CUDA(cudaDeviceGetAttribute(&numSMs, cudaDevAttrMultiProcessorCount, device));
     printf("%d SMs on device %d\n", numSMs, device);
 
     int blockSize = 256;
@@ -165,8 +164,8 @@ void testCUDA()
 
     float* x = nullptr;
     float* y = nullptr;
-    cudaMallocManaged( &x, TOTAL_ELEMENTS * sizeof( float ) );
-    cudaMallocManaged( &y, TOTAL_ELEMENTS * sizeof( float ) );
+    CHECK_CUDA(cudaMallocManaged( &x, TOTAL_ELEMENTS * sizeof( float ) ));
+    CHECK_CUDA(cudaMallocManaged( &y, TOTAL_ELEMENTS * sizeof( float ) ));
 
     // initialize x and y arrays on the host
     for ( int i = 0; i < TOTAL_ELEMENTS; i++ ) {
@@ -178,7 +177,7 @@ void testCUDA()
     addCUDA<<<numBlocks, blockSize>>>( TOTAL_ELEMENTS, x, y );
 
     // Wait for threads to complete
-    cudaDeviceSynchronize();
+    CHECK_CUDA(cudaDeviceSynchronize());
 
     // Check for errors (all values should be 3.0f)
     float maxError = 0.0f;
@@ -188,8 +187,8 @@ void testCUDA()
     printf( "Max error: %f\n", maxError );
 
     // Free memory
-    cudaFree( x );
-    cudaFree( y );
+    CHECK_CUDA(cudaFree( x ));
+    CHECK_CUDA(cudaFree( y ));
 
     printf( "Elapsed ms: %d\n\n", (uint32_t)t.ElapsedMilliseconds() );
 }

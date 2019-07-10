@@ -264,7 +264,7 @@ static vec3 _color_recursive( const ray& r, const Scene* scene, float depth )
 {
     hit_info hit;
 
-    if ( scene->hit( r, 0.001f, std::numeric_limits<float>::max(), &hit ) ) {
+    if ( scene->hit( r, 0.001f, (std::numeric_limits<float>::max)(), &hit ) ) {
 #if defined( NORMAL_SHADE )
         vec3 normal = ( r.point( hit.distance ) - vec3( 0, 0, -1 ) ).normalized();
         return 0.5f * vec3( normal.x + 1, normal.y + 1, normal.z + 1 );
@@ -298,7 +298,7 @@ static vec3 _color( const ray& r, const Scene* scene, float depth )
     vec3 color( 1, 1, 1 );
 
     for ( int i = 0; i < MAX_RAY_DEPTH; i++ ) {
-        if ( scene->hit( scattered, 0.001f, std::numeric_limits<float>::max(), &hit ) ) {
+        if ( scene->hit( scattered, 0.001f, (std::numeric_limits<float>::max)(), &hit ) ) {
 #if defined( NORMAL_SHADE )
             vec3 normal = ( r.point( hit.distance ) - vec3( 0, 0, -1 ) ).normalized();
             return 0.5f * vec3( normal.x + 1, normal.y + 1, normal.z + 1 );

@@ -13,7 +13,7 @@ public:
     Camera() :
         Camera( 50.0f, 2.0f ) {}
 
-    Camera( float vfov, float aspect, float aperture = 1.0f, float focusDistance = std::numeric_limits<float>::max(), const vec3& pos = vec3( 0, 0, 0 ), const vec3& up = vec3( 0, 1, 0 ), const vec3& lookat = vec3( 0, 0, -1 ) )
+    Camera( float vfov, float aspect, float aperture = 1.0f, float focusDistance = (std::numeric_limits<float>::max)(), const vec3& pos = vec3( 0, 0, 0 ), const vec3& up = vec3( 0, 1, 0 ), const vec3& lookat = vec3( 0, 0, -1 ) )
     {
         lensRadius = aperture / 2.0f;
 
