@@ -8,6 +8,7 @@
 #include "perf_timer.h"
 #include "ray.h"
 #include "sphere.h"
+#include "test.h"
 #include "threadpool.h"
 #include "utils.h"
 #include "vec3.h"
@@ -31,10 +32,11 @@ const unsigned int ROWS = 1280;
 // Anti-aliasing
 const unsigned int NUM_AA_SAMPLES = 50;
 
-// Num bounces per ray
+// Max bounces per ray
 const unsigned int MAX_RAY_DEPTH = 50;
 
-static int    _renderScene( const std::string& filename, const Scene& scene, const Camera& camera, uint32_t* frameBuffer, unsigned blockSize = 64, bool debug = false );
+static int    _renderScene( const std::string& filename, const Scene& scene, const Camera& camera, uint32_t* frameBuffer, unsigned numThreads = 1, unsigned blockSize = 64, bool debug = false, bool recursive = true );
+static vec3   _color_recursive( const ray& r, const Scene* scene, float depth );
 static vec3   _color( const ray& r, const Scene* scene, float depth );
 static vec3   _background( const ray& r );
 static Scene* _randomScene();
@@ -50,6 +52,7 @@ typedef struct _RenderThreadContext {
     std::atomic<uint32_t>* blockCount;
     uint32_t               totalBlocks;
     bool                   debug;
+    bool                   recursive;
 
     _RenderThreadContext() :
         scene( nullptr ),
@@ -58,11 +61,12 @@ typedef struct _RenderThreadContext {
         blockSize( 0 ),
         xOffset( 0 ),
         yOffset( 0 ),
-        debug( false )
+        debug( false ),
+        recursive( false )
     {
     }
 } RenderThreadContext;
-static void _renderThread( const void* context );
+static void _renderThread( uint32_t tid, const void* context );
 
 //
 // Simple Ray Tracer
@@ -72,6 +76,12 @@ int main( int argc, char** argv )
 {
     ArgsParser args( argc, argv );
 
+    // TEST
+    testCPU();
+    testCPUThreaded();
+
+//    return 0;
+
     Scene* scene = _randomScene();
 
     vec3  origin( 13, 2, 3 );
@@ -80,9 +90,9 @@ int main( int argc, char** argv )
     float vfov   = 20;
     float aspect = float( COLS ) / float( ROWS );
 
-    float focusDistance = (origin - lookat).length();
-    //float focusDistance = 10.0f;
-    float aperture      = 0.1f;
+    //float focusDistance = ( origin - lookat ).length();
+    float focusDistance = 10.0f;
+    float aperture = 0.1f;
 
     Camera camera( vfov, aspect, aperture, focusDistance, origin, up, lookat );
 
@@ -108,9 +118,12 @@ int main( int argc, char** argv )
         debug = true;
     }
 
-    threadPoolInit( numThreads );
+    bool recursive = false;
+    if ( args.cmdOptionExists( "-r" ) ) {
+        recursive = true;
+    }
 
-    _renderScene( "foo.ppm", *scene, camera, frameBuffer, blockSize, debug );
+    _renderScene( "foo.ppm", *scene, camera, frameBuffer, numThreads, blockSize, debug, recursive );
 
     delete scene;
     delete[] frameBuffer;
@@ -118,7 +131,7 @@ int main( int argc, char** argv )
     return 0;
 }
 
-static int _renderScene( const std::string& filename, const Scene& scene, const Camera& camera, uint32_t* frameBuffer, unsigned blockSize, bool debug )
+static int _renderScene( const std::string& filename, const Scene& scene, const Camera& camera, uint32_t* frameBuffer, unsigned numThreads, unsigned blockSize, bool debug, bool recursive )
 {
     FILE*   file = nullptr;
     errno_t err  = fopen_s( &file, filename.c_str(), "w" );
@@ -128,10 +141,10 @@ static int _renderScene( const std::string& filename, const Scene& scene, const 
     }
 
     // Spin up a pool of render threads, one per tile
-    uint32_t numThreads = std::thread::hardware_concurrency();
     uint32_t numBlocks  = ( ROWS / blockSize ) * ( ROWS / blockSize );
+    thread_pool_t tp = threadPoolInit( numThreads );
 
-    printf( "Render: blockSize %d x %d, %d blocks debug %d\n", blockSize, blockSize, numBlocks, debug );
+    printf( "Render: blockSize %d x %d, %d blocks debug %d threads [%d:%d]\n", blockSize, blockSize, numBlocks, debug, tp, numThreads );
 
     RenderThreadContext* contexts = new RenderThreadContext[ numBlocks ];
 
@@ -152,8 +165,9 @@ static int _renderScene( const std::string& filename, const Scene& scene, const 
             ctx->blockCount          = &blockCount;
             ctx->totalBlocks         = numBlocks;
             ctx->debug               = debug;
+            ctx->recursive           = recursive;
 
-            threadPoolSubmitJob( _renderThread, ctx );
+            threadPoolSubmitJob( tp, _renderThread, ctx );
 
             blockID++;
             xOffset += blockSize;
@@ -166,7 +180,7 @@ static int _renderScene( const std::string& filename, const Scene& scene, const 
         delay( 1000 );
     }
 
-    threadPoolDeinit();
+    threadPoolDeinit( tp );
     delete[] contexts;
 
     // Write to disk
@@ -191,8 +205,10 @@ static int _renderScene( const std::string& filename, const Scene& scene, const 
     return 0;
 }
 
-static void _renderThread( const void* context )
+static void _renderThread( uint32_t tid, const void* context )
 {
+    UNUSED(tid);
+
     const RenderThreadContext* ctx = (const RenderThreadContext*)context;
 
     for ( uint32_t y = ctx->yOffset; y < ctx->yOffset + ctx->blockSize; y++ ) {
@@ -211,7 +227,12 @@ static void _renderThread( const void* context )
                 float u = float( x + random() ) / float( COLS );
                 float v = float( y + random() ) / float( ROWS );
                 ray   r = ctx->camera->getRay( u, v );
-                color += _color( r, ctx->scene, 0 );
+
+                if ( ctx->recursive ) {
+                    color += _color_recursive( r, ctx->scene, 0 );
+                } else {
+                    color += _color( r, ctx->scene, 0 );
+                }
             }
             color /= float( NUM_AA_SAMPLES );
 
@@ -228,28 +249,28 @@ static void _renderThread( const void* context )
     }
 
     // Notify caller that we have completed one work item
-    if (ctx->blockID == ctx->totalBlocks - 1) {
+    if ( ctx->blockID == ctx->totalBlocks - 1 ) {
         std::atomic<uint32_t>* blockCount = ctx->blockCount;
         //uint32_t               count = blockCount->fetch_add(1);
-        blockCount->exchange(ctx->totalBlocks);
+        blockCount->exchange( ctx->totalBlocks );
     }
 
     return;
 }
 
 // Recursively trace each ray through objects/materials
-static vec3 _color( const ray& r, const Scene* scene, float depth )
+static vec3 _color_recursive( const ray& r, const Scene* scene, float depth )
 {
     hit_info hit;
 
     if ( scene->hit( r, 0.001f, std::numeric_limits<float>::max(), &hit ) ) {
 #if defined( NORMAL_SHADE )
-        vec3 normal = ( r.point( hit.t ) - vec3( 0, 0, -1 ) ).normalized();
+        vec3 normal = ( r.point( hit.distance ) - vec3( 0, 0, -1 ) ).normalized();
         return 0.5f * vec3( normal.x + 1, normal.y + 1, normal.z + 1 );
 #elif defined( DIFFUSE_SHADE )
         if ( depth < MAX_RAY_DEPTH ) {
             vec3 target = hit.point + hit.normal + randomInUnitSphere();
-            return 0.5f * _color( ray( hit.point, target - hit.point ), scene, depth + 1 );
+            return 0.5f * _color_recursive( ray( hit.point, target - hit.point ), scene, depth + 1 );
         } else {
             return vec3( 0, 0, 0 );
         }
@@ -261,11 +282,47 @@ static vec3 _color( const ray& r, const Scene* scene, float depth )
         } else {
             return vec3( 0, 0, 0 );
         }
-
 #endif
     }
 
     return _background( r );
+}
+
+// Non-recursive version
+static vec3 _color( const ray& r, const Scene* scene, float depth )
+{
+    hit_info hit;
+    vec3 attenuation;
+    ray  scattered = r;
+    vec3 color( 1, 1, 1 );
+
+    for ( int i = 0; i < MAX_RAY_DEPTH; i++ ) {
+        if ( scene->hit( scattered, 0.001f, std::numeric_limits<float>::max(), &hit ) ) {
+#if defined( NORMAL_SHADE )
+            vec3 normal = ( r.point( hit.distance ) - vec3( 0, 0, -1 ) ).normalized();
+            return 0.5f * vec3( normal.x + 1, normal.y + 1, normal.z + 1 );
+#elif defined( DIFFUSE_SHADE )
+            if ( depth < MAX_RAY_DEPTH ) {
+                vec3 target = hit.point + hit.normal + randomInUnitSphere();
+                return 0.5f * _color( ray( hit.point, target - hit.point ), scene, depth + 1 );
+            } else {
+                return vec3( 0, 0, 0 );
+            }
+#else
+            if ( hit.material && hit.material->scatter( scattered, hit, &attenuation, &scattered ) ) {
+                color *= attenuation;
+            }
+            else {
+                break;
+            }
+#endif
+        } else {
+            color *= _background( scattered );
+            break;
+        }
+    }
+
+    return color;
 }
 
 static vec3 _background( const ray& r )

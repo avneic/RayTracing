@@ -5,49 +5,69 @@
 #include "threadpool.h"
 
 #include "msgqueue.h"
+#include "utils.h"
 
 #include <atomic>
 #include <cassert>
 #include <cstdio>
+#include <mutex>
 #include <thread>
 #include <vector>
 
 namespace pk
 {
 
-typedef struct _Job {
+static const int MAX_THREAD_POOLS = 4;
+static const int MAX_QUEUE_DEPTH  = 512;
+
+typedef struct _job {
     jobFunction function;
     void*       context;
 
-    _Job() :
+    _job() :
         function( nullptr ),
         context( nullptr ) {}
-} Job;
+} _job_t;
 
-typedef struct _thread_t {
+typedef struct _thread {
     uint32_t          tid;
+    thread_pool_t     pool;
     std::thread*      thread;
     std::atomic<bool> shouldExit;
 
-    _thread_t() :
+    _thread() :
         tid( -1 ),
         thread( nullptr ),
         shouldExit( false )
     {
     }
 
-    _thread_t( const _thread_t& rhs )
+    _thread( const _thread& rhs )
     {
         tid        = rhs.tid;
+        pool       = rhs.pool;
         thread     = std::move( rhs.thread );
         shouldExit = false;
     }
-} thread_t;
+} _thread_t;
 
-static std::vector<thread_t> s_threads;
-static queue_t               s_job_queue     = INVALID_QUEUE;
-static const int             MAX_QUEUE_DEPTH = 512;
 
+typedef struct _thread_pool {
+    std::mutex             mutex;
+    std::vector<_thread_t> threads;
+    queue_t                job_queue;
+    bool                   free;
+
+    _thread_pool() :
+        free( true ),
+        job_queue( INVALID_QUEUE ) {}
+} _thread_pool_t;
+
+
+static std::mutex     s_pools_mutex;
+static _thread_pool_t s_pools[ MAX_THREAD_POOLS ];
+
+static bool _valid( thread_pool_t pool );
 static void _threadWorker( void* context );
 
 
@@ -55,52 +75,89 @@ static void _threadWorker( void* context );
 // Public
 //
 
-void threadPoolInit( uint32_t numThreads )
+thread_pool_t threadPoolInit( uint32_t numThreads )
 {
-    assert( numThreads && s_threads.size() == 0 );
-    s_threads.reserve( numThreads );
+    assert( numThreads );
 
-    uint8_t* buffer = new uint8_t[ sizeof( Job ) * MAX_QUEUE_DEPTH ];
-    s_job_queue     = queue_create( sizeof( Job ), MAX_QUEUE_DEPTH, buffer );
+    _thread_pool_t* tp     = nullptr;
+    thread_pool_t   handle = INVALID_THREAD_POOL;
 
-    for ( uint32_t i = 0; i < numThreads; i++ ) {
-        thread_t t;
-        t.tid    = (uint32_t)i;
-        t.thread = new std::thread( _threadWorker, (void*)t.tid );
-        assert( t.thread->joinable() );
-        s_threads.push_back( t );
+    std::lock_guard<std::mutex> lock( s_pools_mutex );
+
+    for ( int i = 0; i < ARRAY_SIZE( s_pools ); i++ ) {
+        std::lock_guard<std::mutex> lock_queue( s_pools[ i ].mutex );
+
+        if ( s_pools[ i ].free ) {
+            tp       = &s_pools[ i ];
+            tp->free = false;
+            handle   = (thread_pool_t)i;
+            break;
+        }
     }
 
-    printf( "Created %d threads\n", numThreads );
+    if ( !tp )
+        return INVALID_THREAD_POOL;
+
+    tp->threads.reserve( numThreads );
+
+    uint8_t* buffer = new uint8_t[ sizeof( _job_t ) * MAX_QUEUE_DEPTH ];
+    tp->job_queue   = queue_create( sizeof( _job_t ), MAX_QUEUE_DEPTH, buffer );
+
+    for ( uint32_t i = 0; i < numThreads; i++ ) {
+        _thread_t t;
+        t.pool = handle;
+        t.tid  = (uint32_t)i;
+
+        tp->threads.push_back( t );
+        tp->threads[ i ].thread = new std::thread( _threadWorker, (void*)&tp->threads[ i ] );
+        assert( tp->threads[ i ].thread->joinable() );
+    }
+
+    printf( "Created pool %d, %d threads\n", handle, numThreads );
+
+    return handle;
 }
 
-bool threadPoolSubmitJob( jobFunction function, void* context )
+bool threadPoolSubmitJob( thread_pool_t pool, jobFunction function, void* context, bool blocking )
 {
-    Job job;
+    if ( !_valid( pool ) )
+        return false;
+
+    _thread_pool_t* tp = &s_pools[ pool ];
+
+    _job_t job;
     job.function = function;
     job.context  = context;
-    //result rval  = queue_send( s_job_queue, &job );
-    result rval  = queue_send_blocking( s_job_queue, &job );
 
-    //printf( "_submitJob: 0x%p( 0x%p ) %d (%zd)\n", function, context, rval, queue_size( s_job_queue ) );
+    result rval = R_OK;
+    if ( blocking ) {
+        rval = queue_send_blocking( tp->job_queue, &job );
+    } else {
+        rval = queue_send( tp->job_queue, &job );
+    }
 
-    return true;
+    //printf( "_submit_job_t: 0x%p( 0x%p ) %d (%zd)\n", function, context, rval, queue_size( s_job_queue ) );
+
+    return (rval == R_OK);
 }
 
 
-bool threadPoolDeinit()
+bool threadPoolDeinit( thread_pool_t pool )
 {
-    //printf( "kill threads\n" );
+    if ( !_valid( pool ) )
+        return false;
 
-    for ( int i = 0; i < s_threads.size(); i++ ) {
-        thread_t& t  = s_threads[ i ];
+    _thread_pool_t* tp = &s_pools[ pool ];
+
+    for ( int i = 0; i < tp->threads.size(); i++ ) {
+        _thread_t& t = tp->threads[ i ];
         t.shouldExit = true;
     }
 
-    queue_notify_all( s_job_queue );
+    queue_notify_all( tp->job_queue );
 
-    for ( int i = 0; i < s_threads.size(); i++ ) {
-        thread_t& t = s_threads[ i ];
+    for ( int i = 0; i < tp->threads.size(); i++ ) {
+        _thread_t& t = tp->threads[ i ];
         t.thread->join();
 
         //printf( "thread[%d] done\n", i );
@@ -114,26 +171,35 @@ bool threadPoolDeinit()
 // Private
 //
 
+static bool _valid( thread_pool_t pool )
+{
+    if ( pool == INVALID_THREAD_POOL || pool >= ARRAY_SIZE( s_pools ) ) {
+        return false;
+    }
+
+    return true;
+}
+
+
+// Call the user-supplied function, passing a thread ID (informational) and the user-supplied function context
 static void _threadWorker( void* context )
 {
-    uint32_t tid = (uint32_t)context;
-    printf( "_threadWorker[%d] started\n", tid );
+    _thread_t*      thread = (_thread_t*)context;
+    _thread_pool_t* tp     = &s_pools[ thread->pool ];
+
+    //printf( "_threadWorker[%d:%d] started\n", thread->pool, thread->tid );
 
     while ( true ) {
-        Job job;
+        _job_t job;
 
-        if ( s_threads[ tid ].shouldExit ) {
+        if ( tp->threads[ thread->tid ].shouldExit ) {
             return;
         }
 
-        if ( R_TIMEOUT != queue_receive( s_job_queue, &job, sizeof( job ), std::numeric_limits<unsigned int>::max() ) ) {
-            //RenderThreadContext* ctx = (RenderThreadContext*)job.context;
-
+        if ( R_TIMEOUT != queue_receive( tp->job_queue, &job, sizeof( job ), std::numeric_limits<unsigned int>::max() ) ) {
             if ( job.function ) {
-                job.function( job.context );
-
-                //std::atomic<uint32_t>* blockCount = ctx->blockCount;
-                //uint32_t               count      = blockCount->fetch_add( 1 );
+                uint32_t tid = uint32_t( thread->pool << 16 | thread->tid );
+                job.function( tid, job.context );
             }
         }
     }

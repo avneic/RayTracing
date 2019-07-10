@@ -8,6 +8,14 @@ namespace pk
 #define RADIANS( x ) ( (x)*M_PI / 180.0f )
 
 #define ARRAY_SIZE( x ) ( sizeof( x ) / sizeof( ( x )[ 0 ] ) )
+#define UNUSED(x) (x);
+
+#ifndef CLAMP
+#define CLAMP(x, min, max)  ( MIN( (max), MAX( (x), (min) ) ) )
+#endif
+
+#define STRINGIFY(x) #x
+#define XSTRINGIFY(s) STRINGIFY(s)
 
 bool  delay( size_t ms );
 float random();
