@@ -83,8 +83,10 @@
     <ClCompile Include="perf_timer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="test.cpp">
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="test.cu">
       <Filter>Source Files</Filter>
-    </ClCompile>
+    </None>
   </ItemGroup>
 </Project>

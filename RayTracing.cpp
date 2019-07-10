@@ -79,8 +79,9 @@ int main( int argc, char** argv )
     // TEST
     testCPU();
     testCPUThreaded();
+    testCUDA();
 
-//    return 0;
+    return 0;
 
     Scene* scene = _randomScene();
 
