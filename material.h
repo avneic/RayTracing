@@ -2,7 +2,7 @@
 
 #include "ray.h"
 #include "vec3.h"
-#include "visible.h"
+#include "scene.h"
 
 namespace pk
 {

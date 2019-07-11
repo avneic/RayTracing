@@ -24,9 +24,6 @@
     <ClInclude Include="ray.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="visible.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="sphere.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -57,6 +54,12 @@
     <ClInclude Include="test.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="raytracer.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="scene.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -83,9 +86,17 @@
     <ClCompile Include="perf_timer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="raytracer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="test.cu">
+    <None Include="test.cu">
+      <Filter>Source Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="raytracer.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
   </ItemGroup>

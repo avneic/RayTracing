@@ -1,6 +1,6 @@
 #pragma once
 
-#include "visible.h"
+#include "scene.h"
 
 namespace pk
 {
