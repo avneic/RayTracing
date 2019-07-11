@@ -1,9 +1,10 @@
 #include "raytracer.h"
 
 #include "material.h"
+#include "perf_timer.h"
 #include "ray.h"
 #include "scene.h"
-#include "vector.h"
+#include "vector_cuda.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -12,25 +13,42 @@
 namespace pk
 {
 
-__global__ void render( float *framebuffer, uint32_t max_x, uint32_t max_y )
+__global__ void render( uint32_t *framebuffer, uint32_t max_x, uint32_t max_y )
 {
-    unsigned  x   = threadIdx.x + blockIdx.x * blockDim.x;
-    unsigned  y   = threadIdx.y + blockIdx.y + blockDim.y;
-    const int bpp = 3;
+    unsigned  x   = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned  y   = blockIdx.y * blockDim.y + threadIdx.y;
 
     if ( x >= max_x || y >= max_y )
         return;
 
-    unsigned p = ( y * max_x * bpp ) + ( x * bpp );
+    uint8_t r = uint8_t( (float( x ) / max_x) * 255.0f);
+    uint8_t g = uint8_t( (float( y ) / max_y) * 255.0f);
+    uint8_t b = uint8_t((0.2f * 255.0f));
+    uint32_t rgb = ( (uint32_t)r << 24 ) | ( (uint32_t)g << 16 ) | ( (uint32_t)b << 8 );
 
-    // Render a gradient
-    framebuffer[ p + 0 ] = float( x ) / max_x;
-    framebuffer[ p + 1 ] = float( y ) / max_y;
-    framebuffer[ p + 0 ] = 0.2f;
+    unsigned p = (y * max_x) + ( x );
+    framebuffer[p] = rgb;
 }
 
 int renderSceneCUDA( const Scene& scene, const Camera& camera, unsigned rows, unsigned cols, uint32_t* frameBuffer, unsigned num_aa_samples, unsigned max_ray_depth, unsigned numThreads, unsigned blockSize, bool debug, bool recursive )
 {
+    PerfTimer t;
+
+    blockSize = 16;
+
+    // Add +1 to blockSize in case image is not a multiple of blockSize
+    dim3 blocks(cols / blockSize + 1, rows / blockSize + 1);
+    dim3 threads(blockSize, blockSize);
+
+    printf("renderSceneCUDA(): blocks %d,%d,%d threads %d,%d\n", blocks.x, blocks.y, blocks.z, threads.x, threads.y);
+
+    render<<<blocks, threads >>>(frameBuffer, cols, rows);
+    //render<<<(rows*cols), 1>>>(frameBuffer, cols, rows);
+
+    CHECK_CUDA(cudaGetLastError());
+    CHECK_CUDA(cudaDeviceSynchronize());
+    
+    printf("renderSceneCUDA: %f ms\n", t.ElapsedMilliseconds());
 
     return 0;
 }

@@ -54,7 +54,7 @@ void check_cuda( cudaError_t result, char const* const function, const char* con
 {
     if ( result ) {
         printf( "error 0x%x [%s:%d]: ", result, filename, line );
-        printf( "[%s]", function );
+        printf( "[%s]\n", function );
         /*DEBUGCHK(0);*/
         cudaDeviceReset();
     }

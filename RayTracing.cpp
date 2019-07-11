@@ -38,32 +38,10 @@ static Scene* _randomScene();
 
 int main( int argc, char** argv )
 {
+    //
+    // Parse command-line args
+    //
     ArgsParser args( argc, argv );
-
-    // TEST
-    //testCPU();
-    //testCPUThreaded();
-    //testCUDA();
-    //return 0;
-
-    Scene* scene = _randomScene();
-
-    vec3  origin( 13, 2, 3 );
-    vec3  lookat( 0, 0, 0 );
-    vec3  up( 0, 1, 0 );
-    float vfov   = 20;
-    float aspect = float( COLS ) / float( ROWS );
-
-    //float focusDistance = ( origin - lookat ).length();
-    float focusDistance = 10.0f;
-    float aperture      = 0.1f;
-
-    Camera camera( vfov, aspect, aperture, focusDistance, origin, up, lookat );
-
-    // Render to RAM (multi-threaded) then flush to disk
-    uint32_t* frameBuffer = nullptr;
-    frameBuffer           = new uint32_t[ ROWS * COLS ];
-    memset( frameBuffer, 0xCC, sizeof( uint32_t ) * ROWS * COLS );
 
     int numThreads = std::thread::hardware_concurrency() - 1;
     if ( args.cmdOptionExists( "-t" ) ) {
@@ -82,6 +60,12 @@ int main( int argc, char** argv )
         blockSize              = std::stoi( arg );
     }
 
+    //bool cuda = false;
+    bool cuda = true;
+    if ( args.cmdOptionExists( "-c" ) ) {
+        cuda = true;
+    }
+
     bool debug = false;
     if ( args.cmdOptionExists( "-d" ) ) {
         debug = true;
@@ -92,6 +76,38 @@ int main( int argc, char** argv )
         recursive = true;
     }
 
+    //
+    // Define the scene and camera
+    //
+    Scene* scene = _randomScene();
+
+    vec3  origin( 13, 2, 3 );
+    vec3  lookat( 0, 0, 0 );
+    vec3  up( 0, 1, 0 );
+    float vfov   = 20;
+    float aspect = float( COLS ) / float( ROWS );
+
+    //float focusDistance = ( origin - lookat ).length();
+    float focusDistance = 10.0f;
+    float aperture      = 0.1f;
+
+    Camera camera( vfov, aspect, aperture, focusDistance, origin, up, lookat );
+
+    //
+    // Allocate frame buffer
+    // TODO: floating point instead of 8-bit RGB
+    //
+    uint32_t* frameBuffer = nullptr;
+    if ( cuda ) {
+        CHECK_CUDA( cudaMallocManaged( (void**)&frameBuffer, ROWS * COLS * sizeof( uint32_t ) ) );
+    } else {
+        frameBuffer = new uint32_t[ ROWS * COLS ];
+        memset( frameBuffer, 0xCC, sizeof( uint32_t ) * ROWS * COLS );
+    }
+
+    //
+    // Open file to save image
+    //
     FILE*   file = nullptr;
     errno_t err  = fopen_s( &file, filename.c_str(), "w" );
     if ( !file || err != 0 ) {
@@ -99,9 +115,15 @@ int main( int argc, char** argv )
         return -1;
     }
 
-    renderScene( *scene, camera, ROWS, COLS, frameBuffer, NUM_AA_SAMPLES, MAX_RAY_DEPTH, numThreads, blockSize, debug, recursive );
+    if ( cuda ) {
+        renderSceneCUDA( *scene, camera, ROWS, COLS, frameBuffer, NUM_AA_SAMPLES, MAX_RAY_DEPTH, numThreads, blockSize, debug, recursive );
+    } else {
+        renderScene( *scene, camera, ROWS, COLS, frameBuffer, NUM_AA_SAMPLES, MAX_RAY_DEPTH, numThreads, blockSize, debug, recursive );
+    }
 
-    // Write to disk
+    //
+    // Save image
+    //
     fprintf( file, "P3\n" );
     fprintf( file, "%d %d\n", ROWS, COLS );
     fprintf( file, "255\n" );
@@ -121,7 +143,12 @@ int main( int argc, char** argv )
     fclose( file );
 
     delete scene;
-    delete[] frameBuffer;
+
+    if ( cuda ) {
+        CHECK_CUDA( cudaFree( frameBuffer ) );
+    } else {
+        delete[] frameBuffer;
+    }
 
     return 0;
 }

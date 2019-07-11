@@ -139,11 +139,11 @@ static void _renderThread( uint32_t tid, const void* context )
             // Apply 2.0 Gamma correction
             color = vec3( sqrt( color.r() ), sqrt( color.g() ), sqrt( color.b() ) );
 
-            uint8_t _r = ( uint8_t )( 255.99 * color.x );
-            uint8_t _g = ( uint8_t )( 255.99 * color.y );
-            uint8_t _b = ( uint8_t )( 255.99 * color.z );
+            uint8_t  _r  = ( uint8_t )( 255.99 * color.x );
+            uint8_t  _g  = ( uint8_t )( 255.99 * color.y );
+            uint8_t  _b  = ( uint8_t )( 255.99 * color.z );
+            uint32_t rgb = ( (uint32_t)_r << 24 ) | ( (uint32_t)_g << 16 ) | ( (uint32_t)_b << 8 );
 
-            uint32_t rgb                          = ( (uint32_t)_r << 24 ) | ( (uint32_t)_g << 16 ) | ( (uint32_t)_b << 8 );
             ctx->frameBuffer[ y * ctx->cols + x ] = rgb;
         }
     }

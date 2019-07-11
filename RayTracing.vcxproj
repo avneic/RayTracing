@@ -187,6 +187,7 @@
     <ClInclude Include="utils.h" />
     <ClInclude Include="vector.h" />
     <ClInclude Include="scene.h" />
+    <ClInclude Include="vector_cuda.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="perf_timer.cpp">
