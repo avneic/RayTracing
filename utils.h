@@ -1,8 +1,7 @@
 #pragma once
 
-#include "vec3.h"
-
 #include <csignal>
+#include "vector.h"
 
 #define USE_CUDA
 
@@ -70,6 +69,13 @@ void check_cuda( cudaError_t result, char const* const function, const char* con
 #endif
 
 #endif
+
+
+//#ifdef __CUDACC__
+//#else
+//#undef(FLT_MAX)
+//#define FLT_MAX ((std::numeric_limits<float>::max)())
+//#endif
 
 #define M_PI 3.14159265358979323846f
 #define RADIANS( x ) ( (x)*M_PI / 180.0f )

@@ -11,7 +11,7 @@ static float _schlick( float cosine, float refractionIndex );
 
 static vec3 _reflect( const vec3& v, const vec3& normal )
 {
-    return v - 2 * dot( v, normal ) * normal;
+    return v - 2 * v.dot( normal ) * normal;
 }
 
 static bool _refract( const vec3& v, const vec3& normal, float ni_over_nt, vec3* refracted )
@@ -51,7 +51,7 @@ bool Metal::scatter( const ray& r, const hit_info& hit, vec3* attenuation, ray* 
     *scattered     = ray( hit.point, reflected + ( blur * randomInUnitSphere() ) );
     *attenuation   = albedo;
 
-    return ( dot( scattered->direction, hit.normal ) > 0 );
+    return ( scattered->direction.dot( hit.normal ) > 0 );
 }
 
 bool Glass::scatter( const ray& r, const hit_info& hit, vec3* attenuation, ray* scattered ) const

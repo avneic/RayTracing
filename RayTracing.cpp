@@ -12,20 +12,14 @@
 #include "sphere.h"
 #include "test.h"
 #include "utils.h"
-#include "vec3.h"
+#include "vector.h"
 
-#include <atomic>
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
-#include <limits>
-#include <string>
 #include <thread>
 
 using namespace pk;
-
-//#define DIFFUSE_SHADE
-//#define NORMAL_SHADE
 
 const unsigned int COLS = 1280;
 const unsigned int ROWS = 1280;
@@ -137,10 +131,6 @@ static Scene* _randomScene()
     Scene* scene = new Scene();
 
     scene->objects.push_back( new Sphere( vec3( 0, -1000.0f, 0 ), 1000, new Diffuse( vec3( 0.5f, 0.5f, 0.5f ) ) ) );
-
-    //scene->objects.push_back( new Sphere( vec3( -4, 1, 0 ), 1.0f, new Diffuse( vec3( 0.4f, 0.2f, 0.1f ) ) ) );
-    //scene->objects.push_back( new Sphere( vec3( 0, 1, 0 ), 1.0f, new Glass( 1.5f ) ) );
-    //scene->objects.push_back( new Sphere( vec3( 4, 1, 0 ), 1.0f, new Metal( vec3( 0.7f, 0.6f, 0.5f ), 0.0f ) ) );
 
     for ( int a = -11; a < 11; a++ ) {
         for ( int b = -11; b < 11; b++ ) {

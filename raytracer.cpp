@@ -4,7 +4,7 @@
 #include "ray.h"
 #include "scene.h"
 #include "threadpool.h"
-#include "vec3.h"
+#include "vector.h"
 
 #include <atomic>
 #include <cassert>

@@ -27,9 +27,6 @@
     <ClInclude Include="sphere.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="vec3.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="camera.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -58,6 +55,9 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="scene.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vector.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

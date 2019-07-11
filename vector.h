@@ -19,7 +19,7 @@ public:
     ~Vector2() {}
 
     // Return a normalized copy of this vector
-    Vector2 normalized() const
+    inline Vector2 normalized() const
     {
         Vector2 v = *this;
         v.normalize();
@@ -28,79 +28,84 @@ public:
     }
 
     // Normalize this vector
-    void normalize()
+    inline void normalize()
     {
         _TYPE length = (_TYPE)sqrt( x * x + y * y );
         x /= length;
         y /= length;
     }
 
-    float length() const
+    inline float length() const
     {
         return sqrt( x * x + y * y );
     }
 
-    _TYPE dot( const Vector2& v ) const
+    inline float squared_length() const
+    {
+        return x * x + y * y;
+    }
+
+    inline _TYPE dot( const Vector2& v ) const
     {
         return x * v.x + y * v.y;
     }
 
-    _TYPE angle( const Vector2& v ) const
+    inline _TYPE angle( const Vector2& v ) const
     {
         return acos( v.Dot( *this ) );
     }
 
-    Vector2 operator-() const
+    inline Vector2 operator-() const
     {
         return Vector2( -x, -y );
     }
 
-    Vector2 operator-( float f ) const
+    inline Vector2 operator-( float f ) const
     {
         return Vector2( x - f, y - f );
     }
 
-    Vector2 operator-( int i ) const
+    inline Vector2 operator-( int i ) const
     {
         return Vector2( x - i, y - i );
     }
 
-    Vector2 operator+( float f ) const
+    inline Vector2 operator+( float f ) const
     {
         return Vector2( x + f, y + f );
     }
 
-    Vector2 operator+( int i ) const
+    inline Vector2 operator+( int i ) const
     {
         return Vector2( x + i, y + i );
     }
 
-    Vector2 operator+( const Vector2& v ) const
+    inline Vector2 operator+( const Vector2& v ) const
     {
         return Vector2( x + v.x, y + v.y );
     }
 
-    Vector2 operator-( const Vector2& v ) const
+    inline Vector2 operator-( const Vector2& v ) const
     {
         return Vector2( x - v.x, y - v.y );
     }
 
-    Vector2 operator*( _TYPE f )
+    inline Vector2 operator*( _TYPE f )
     {
         return Vector2( x * f, y * f );
     }
 
-    Vector2 operator/( _TYPE f )
+    inline Vector2 operator/( _TYPE f )
     {
         return Vector2( x / f, y / f );
     }
 
-    bool operator==( const Vector2& v ) const
+    inline bool operator==( const Vector2& v ) const
     {
         return x == v.x && y == v.y;
     }
 
-    bool operator!=( const Vector2& v ) const
+    inline bool operator!=( const Vector2& v ) const
     {
         return x != v.x || y != v.y;
     }
@@ -108,42 +113,85 @@ public:
     // We use L2 norm to determine which Vector is < or > the other.
     // Generally correct when finding min/pax points, e.g. for a bounding box.
 
-    bool operator<( const Vector2& v ) const
+    inline bool operator<( const Vector2& v ) const
     {
         return length() < v.length();
     }
 
-    bool operator>( const Vector2& v ) const
+    inline bool operator>( const Vector2& v ) const
     {
         return length() > v.length();
     }
 
-    void operator+=( const Vector2& v )
+    inline Vector2& operator+=( const Vector2& v )
     {
         x += v.x;
         y += v.y;
+        return *this;
     }
 
-    void operator-=( const Vector2& v )
+    inline Vector2& operator-=( const Vector2& v )
     {
         x -= v.x;
         y -= v.y;
+        return *this;
     }
 
-    void operator*=( _TYPE s )
+    inline Vector2& operator*=( _TYPE s )
     {
         x *= s;
         y *= s;
+        return *this;
+    }
+
+    inline Vector2& operator/=( _TYPE s )
+    {
+        x /= s;
+        y /= s;
+        return *this;
+    }
+
+    inline Vector2& operator*=(const Vector2& v)
+    {
+        x *= v.x;
+        y *= v.y;
+        return *this;
     }
 
     _TYPE x;
     _TYPE y;
 };
 
-Vector2<float> operator*(float s, const Vector2<float>& v);
-Vector2<float> operator/(float s, const Vector2<float>& v);
-Vector2<int> operator*(int s, const Vector2<int>& v);
-Vector2<int> operator/(int s, const Vector2<int>& v);
+inline Vector2<float> operator*( float s, const Vector2<float>& v )
+{
+    return Vector2<float>( v.x * s, v.y * s );
+}
+
+inline Vector2<float> operator/( float s, const Vector2<float>& v )
+{
+    return Vector2<float>( v.x / s, v.y / s );
+}
+
+inline Vector2<int> operator*( int s, const Vector2<int>& v )
+{
+    return Vector2<int>( v.x * s, v.y * s );
+}
+
+inline Vector2<int> operator/( int s, const Vector2<int>& v )
+{
+    return Vector2<int>( v.x / s, v.y / s );
+}
+
+inline Vector2<float> operator*(const Vector2<float>& u, const Vector2<float>& v)
+{
+    return Vector2<float>(u.x * v.x, u.y * v.y);
+}
+
+inline Vector2<int> operator*(const Vector2<int>& u, const Vector2<int>& v)
+{
+    return Vector2<int>(u.x * v.x, u.y * v.y);
+}
+
 
 
 template<typename _TYPE>
@@ -160,7 +208,7 @@ public:
 
     ~Vector3() {}
 
-    Vector3 normalized() const
+    inline Vector3 normalized() const
     {
         Vector3 v = *this;
         v.normalize();
@@ -168,7 +216,7 @@ public:
         return v;
     }
 
-    void normalize()
+    inline void normalize()
     {
         _TYPE length = (_TYPE)sqrt( x * x + y * y + z * z );
         x /= length;
@@ -176,107 +224,84 @@ public:
         z /= length;
     }
 
-    float length() const
+    inline float length() const
     {
-        return sqrt( x * x + y * y + z * z );
+        return (float)sqrt( x * x + y * y + z * z );
     }
 
-    Vector3 cross( const Vector3& v ) const
+    inline float squared_length() const
+    {
+        return x * x + y * y + z * z;
+    }
+    
+    inline Vector3 cross( const Vector3& v ) const
     {
         return Vector3( y * v.z - z * v.y,
             z * v.x - x * v.z,
             x * v.y - y * v.x );
     }
 
-    _TYPE dot( const Vector3& v ) const
+    inline _TYPE dot( const Vector3& v ) const
     {
         return (x * v.x) + (y * v.y) + (z * v.z);
     }
 
-    _TYPE angle( const Vector3& v ) const
+    inline _TYPE angle( const Vector3& v ) const
     {
         return acos( v.dot( *this ) );
     }
 
-    Vector3 operator+( const Vector3& v ) const
+    inline Vector3 operator+( const Vector3& v ) const
     {
         return Vector3( x + v.x, y + v.y, z + v.z );
     }
 
-    void operator+=( const Vector3& v )
-    {
-        x += v.x;
-        y += v.y;
-        z += v.z;
-    }
-
-    void operator-=( const Vector3& v )
-    {
-        x -= v.x;
-        y -= v.y;
-        z -= v.z;
-    }
-
-    void operator/=( _TYPE s )
-    {
-        x /= s;
-        y /= s;
-        z /= s;
-    }
-
-    void operator*=( _TYPE s )
-    {
-        x *= s;
-        y *= s;
-        z *= s;
-    }
-
-    Vector3 operator-( const Vector3& v ) const
+    inline Vector3 operator-( const Vector3& v ) const
     {
         return Vector3( x - v.x, y - v.y, z - v.z );
     }
 
-    Vector3 operator-( float f ) const
+    inline Vector3 operator-( float f ) const
     {
         return Vector3( x - f, y - f, z - f );
     }
 
-    Vector3 operator-( int i ) const
+    inline Vector3 operator-( int i ) const
     {
         return Vector3( x - i, y - i, z - i );
     }
 
-    Vector3 operator+( float f ) const
+    inline Vector3 operator+( float f ) const
     {
         return Vector3( x + f, y + f, z + f );
     }
 
-    Vector3 operator+( int i ) const
+    inline Vector3 operator+( int i ) const
     {
         return Vector3( x + i, y + i, z + i );
     }
 
-    Vector3 operator-() const
+    inline Vector3 operator-() const
     {
         return Vector3( -x, -y, -z );
     }
 
-    Vector3 operator*( _TYPE s ) const
+    inline Vector3 operator*( _TYPE s ) const
     {
         return Vector3( x * s, y * s, z * s );
     }
 
-    Vector3 operator/( _TYPE s ) const
+    inline Vector3 operator/( _TYPE s ) const
     {
         return Vector3( x / s, y / s, z / s );
     }
 
-    bool operator==( const Vector3& v ) const
+    inline bool operator==( const Vector3& v ) const
     {
         return x == v.x && y == v.y && z == v.z;
     }
 
-    bool operator!=( const Vector3& v ) const
+    inline bool operator!=( const Vector3& v ) const
     {
         return x != v.x || y != v.y || z != v.z;
     }
@@ -284,20 +309,72 @@ public:
     // We use L2 norm to determine which Vector is < or > the other.
     // Generally correct when finding min/pax points, e.g. for a bounding box.
 
-    bool operator<( const Vector3& v ) const
+    inline bool operator<( const Vector3& v ) const
     {
         return length() < v.length();
     }
 
-    bool operator>( const Vector3& v ) const
+    inline bool operator>( const Vector3& v ) const
     {
         return length() > v.length();
     }
 
-    operator const _TYPE*() const
+    inline Vector3& operator*=( _TYPE s )
+    {
+        x *= s;
+        y *= s;
+        z *= s;
+        return *this;
+    }
+
+    inline Vector3& operator/=( _TYPE s )
+    {
+        x /= s;
+        y /= s;
+        z /= s;
+        return *this;
+    }
+
+    inline Vector3& operator+=( const Vector3& v )
+    {
+        x += v.x;
+        y += v.y;
+        z += v.z;
+        return *this;
+    }
+
+    inline Vector3& operator-=( const Vector3& v )
+    {
+        x -= v.x;
+        y -= v.y;
+        z -= v.z;
+        return *this;
+    }
+
+    inline Vector3& operator*=(const Vector3& v)
+    {
+        x *= v.x;
+        y *= v.y;
+        z *= v.z;
+        return *this;
+    }
+
+    inline Vector3& operator/=(const Vector3& v)
+    {
+        x /= v.x;
+        y /= v.y;
+        z /= v.z;
+        return *this;
+    }
+
+    inline operator const _TYPE*() const
     {
         return static_cast<const _TYPE*>( &x );
     }
+
+    inline float r() const { return x; }
+    inline float g() const { return y; }
+    inline float b() const { return z; }
 
     _TYPE x;
     _TYPE y;
@@ -305,10 +382,35 @@ public:
 };
 
 
-Vector3<float> operator*(float s, const Vector3<float>& v);
-Vector3<float> operator/(float s, const Vector3<float>& v);
-Vector3<int> operator*(int s, const Vector3<int>& v);
-Vector3<int> operator/(int s, const Vector3<int>& v);
+inline Vector3<float> operator*( float s, const Vector3<float>& v )
+{
+    return Vector3<float>( v.x * s, v.y * s, v.z * s );
+}
+
+inline Vector3<float> operator/( float s, const Vector3<float>& v )
+{
+    return Vector3<float>( v.x / s, v.y / s, v.z / s );
+}
+
+inline Vector3<int> operator*( int s, const Vector3<int>& v )
+{
+    return Vector3<int>( v.x * s, v.y * s, v.z * s );
+}
+
+inline Vector3<int> operator/( int s, const Vector3<int>& v )
+{
+    return Vector3<int>( v.x / s, v.y / s, v.z / s );
+}
+
+inline Vector3<float> operator*(const Vector3<float>& u, const Vector3<float>& v)
+{
+    return Vector3<float>(u.x * v.x, u.y * v.y, u.z * v.z);
+}
+
+inline Vector3<int> operator*(const Vector3<int>& u, const Vector3<int>& v)
+{
+    return Vector3<int>(u.x * v.x, u.y * v.y, u.z * v.z);
+}
 
 
 template<typename _TYPE>
@@ -326,7 +428,7 @@ public:
 
     ~Vector4() {}
 
-    Vector4 normalized() const
+    inline Vector4 normalized() const
     {
         Vector4 v = *this;
         v.normalize();
@@ -334,7 +436,7 @@ public:
         return v;
     }
 
-    void normalize()
+    inline void normalize()
     {
         _TYPE length = (_TYPE)sqrt( x * x + y * y + z * z + w * w );
         x /= length;
@@ -343,62 +445,67 @@ public:
         w /= length;
     }
 
-    float length()
+    inline float length() const
     {
         return sqrt( x * x + y * y + z * z + w * w );
     }
 
-    Vector4 operator-() const
+    inline float squared_length() const
+    {
+        return x * x + y * y + z * z + w * w;
+    }
+    
+    inline Vector4 operator-() const
     {
         return Vector4( -x, -y, -z, -w );
     }
 
-    Vector4 operator-( float f ) const
+    inline Vector4 operator-( float f ) const
     {
         return Vector4( x - f, y - f, z - f, w - f );
     }
 
-    Vector4 operator-( int i ) const
+    inline Vector4 operator-( int i ) const
     {
         return Vector4( x - i, y - i, z - i, w - i );
     }
 
-    Vector4 operator-( const Vector4& v ) const
+    inline Vector4 operator-( const Vector4& v ) const
     {
         return Vector4( x - v.x, y - v.y, z - v.z, w - v.w );
     }
 
-    Vector4 operator+( float f ) const
+    inline Vector4 operator+( float f ) const
     {
         return Vector4( x + f, y + f, z + f, w + f );
     }
 
-    Vector4 operator+( int i ) const
+    inline Vector4 operator+( int i ) const
     {
         return Vector4( x + i, y + i, z + i, w + i );
     }
 
-    Vector4 operator+( const Vector4& v ) const
+    inline Vector4 operator+( const Vector4& v ) const
     {
         return Vector4( x + v.x, y + v.y, z + v.z, w + v.w );
     }
 
-    Vector4 operator*( _TYPE s ) const
+    inline Vector4 operator*( _TYPE s ) const
     {
         return Vector4( x * s, y * s, z * s, w * s );
     }
 
-    Vector4 operator/( _TYPE s ) const
+    inline Vector4 operator/( _TYPE s ) const
     {
         return Vector4( x / s, y / s, z / s, w / s );
     }
 
-    bool operator==( const Vector4& v ) const
+    inline bool operator==( const Vector4& v ) const
     {
         return x == v.x && y == v.y && z == v.z && w == v.w;
     }
 
-    bool operator!=( const Vector4& v ) const
+    inline bool operator!=( const Vector4& v ) const
     {
         return x != v.x || y != v.y || z != v.z || w != v.w;
     }
@@ -406,46 +513,74 @@ public:
     // We use L2 norm to determine which Vector is < or > the other.
     // Generally correct when finding min/pax points, e.g. for a bounding box.
 
-    bool operator<( const Vector4& v ) const
+    inline bool operator<( const Vector4& v ) const
     {
         return length() < v.length();
     }
 
-    bool operator>( const Vector4& v ) const
+    inline bool operator>( const Vector4& v ) const
     {
         return length() > v.length();
     }
 
-    void operator+=( const Vector4& v )
-    {
-        x += v.x;
-        y += v.y;
-        z += v.z;
-        w += v.w;
-    }
-
-    void operator-=( const Vector4& v )
-    {
-        x -= v.x;
-        y -= v.y;
-        z -= v.z;
-        w -= v.w;
-    }
-
-    void operator/=( _TYPE s )
-    {
-        x /= s;
-        y /= s;
-        z /= s;
-    }
-
-    void operator*=( _TYPE s )
+    inline Vector4& operator*=( _TYPE s )
     {
         x *= s;
         y *= s;
         z *= s;
         w *= s;
+        return *this;
     }
+
+    inline Vector4& operator/=( _TYPE s )
+    {
+        x /= s;
+        y /= s;
+        z /= s;
+        w /= s;
+        return *this;
+    }
+
+    inline Vector4& operator+=( const Vector4& v )
+    {
+        x += v.x;
+        y += v.y;
+        z += v.z;
+        w += v.w;
+        return *this;
+    }
+
+    inline Vector4& operator-=( const Vector4& v )
+    {
+        x -= v.x;
+        y -= v.y;
+        z -= v.z;
+        w -= v.w;
+        return *this;
+    }
+
+    inline Vector4& operator*=(const Vector4& v)
+    {
+        x *= v.x;
+        y *= v.y;
+        z *= v.z;
+        w *= v.w;
+        return *this;
+    }
+
+    inline Vector4& operator/=(const Vector4& v)
+    {
+        x /= v.x;
+        y /= v.y;
+        z /= v.z;
+        w /= v.w;
+        return *this;
+    }
+
+    inline float r() const { return x; }
+    inline float g() const { return y; }
+    inline float b() const { return z; }
+    inline float a() const { return w; }
 
     _TYPE x;
     _TYPE y;
@@ -453,17 +588,44 @@ public:
     _TYPE w;
 };
 
-Vector4<float> operator*(float s, const Vector4<float>& v);
-Vector4<float> operator/(float s, const Vector4<float>& v);
-Vector4<int> operator*(int s, const Vector4<int>& v);
-Vector4<int> operator/(int s, const Vector4<int>& v);
 
-//typedef Vector2<int> ivec2;
-//typedef Vector3<int> ivec3;
-//typedef Vector4<int> ivec4;
-//
-//typedef Vector2<float> vec2;
-//typedef Vector3<float> vec3;
-//typedef Vector4<float> vec4;
+inline Vector4<float> operator*( float s, const Vector4<float>& v )
+{
+    return Vector4<float>( v.x * s, v.y * s, v.z * s, v.w * s );
+}
+
+inline Vector4<float> operator/( float s, const Vector4<float>& v )
+{
+    return Vector4<float>( v.x / s, v.y / s, v.z / s, v.w / s );
+}
+
+inline Vector4<int> operator*( int s, const Vector4<int>& v )
+{
+    return Vector4<int>( v.x * s, v.y * s, v.z * s, v.w * s );
+}
+
+inline Vector4<int> operator/( int s, const Vector4<int>& v )
+{
+    return Vector4<int>( v.x / s, v.y / s, v.z / s, v.w / s );
+}
+
+inline Vector4<float> operator*(const Vector4<float>& u, const Vector4<float>& v)
+{
+    return Vector4<float>(u.x * v.x, u.y * v.y, u.z * v.z, u.w * v.w);
+}
+
+inline Vector4<int> operator*(const Vector4<int>& u, const Vector4<int>& v)
+{
+    return Vector4<int>(u.x * v.x, u.y * v.y, u.z * v.z, u.w * v.w);
+}
+
+
+typedef Vector2<int> ivec2;
+typedef Vector3<int> ivec3;
+typedef Vector4<int> ivec4;
+
+typedef Vector2<float> vec2;
+typedef Vector3<float> vec3;
+typedef Vector4<float> vec4;
 
 } // namespace pk

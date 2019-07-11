@@ -185,7 +185,7 @@
     <ClInclude Include="result.h" />
     <ClInclude Include="sphere.h" />
     <ClInclude Include="utils.h" />
-    <ClInclude Include="vec3.h" />
+    <ClInclude Include="vector.h" />
     <ClInclude Include="scene.h" />
   </ItemGroup>
   <ItemGroup>

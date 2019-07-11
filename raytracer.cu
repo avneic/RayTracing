@@ -1,3 +1,10 @@
+#include "raytracer.h"
+
+#include "material.h"
+#include "ray.h"
+#include "scene.h"
+#include "vector.h"
+
 #include <cstdint>
 #include <cstdio>
 #include <cuda_runtime.h>
@@ -20,6 +27,12 @@ __global__ void render( float *framebuffer, uint32_t max_x, uint32_t max_y )
     framebuffer[ p + 0 ] = float( x ) / max_x;
     framebuffer[ p + 1 ] = float( y ) / max_y;
     framebuffer[ p + 0 ] = 0.2f;
+}
+
+int renderSceneCUDA( const Scene& scene, const Camera& camera, unsigned rows, unsigned cols, uint32_t* frameBuffer, unsigned num_aa_samples, unsigned max_ray_depth, unsigned numThreads, unsigned blockSize, bool debug, bool recursive )
+{
+
+    return 0;
 }
 
 } // namespace pk

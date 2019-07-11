@@ -2,8 +2,12 @@
 
 #include "ray.h"
 #include "utils.h"
-#include "vec3.h"
+#include "vector.h"
 
+#include <cstdint>
+#include <limits.h>
+#include <cfloat> // for FLT_MAX
+#include <cstdio>
 
 namespace pk
 {
@@ -13,12 +17,12 @@ public:
     Camera() :
         Camera( 50.0f, 2.0f ) {}
 
-    Camera( float vfov, float aspect, float aperture = 1.0f, float focusDistance = (std::numeric_limits<float>::max)(), const vec3& pos = vec3( 0, 0, 0 ), const vec3& up = vec3( 0, 1, 0 ), const vec3& lookat = vec3( 0, 0, -1 ) )
+    Camera( float vfov, float aspect, float aperture = 1.0f, float focusDistance = FLT_MAX, const vec3& pos = vec3( 0, 0, 0 ), const vec3& up = vec3( 0, 1, 0 ), const vec3& lookat = vec3( 0, 0, -1 ) )
     {
         lensRadius = aperture / 2.0f;
 
         float theta      = RADIANS( vfov );
-        float halfHeight = tan( theta / 2 );
+        float halfHeight = (float)tan( theta / 2 );
         float halfWidth  = aspect * halfHeight;
 
         origin = pos;

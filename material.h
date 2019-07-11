@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ray.h"
-#include "vec3.h"
+#include "vector.h"
 #include "scene.h"
 
 namespace pk
