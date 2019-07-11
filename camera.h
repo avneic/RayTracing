@@ -2,7 +2,7 @@
 
 #include "ray.h"
 #include "utils.h"
-#include "vector.h"
+#include "vector_cuda.h"
 
 #include <cstdint>
 #include <limits.h>
@@ -14,10 +14,10 @@ namespace pk
 
 class Camera {
 public:
-    Camera() :
+    LINKAGE Camera() :
         Camera( 50.0f, 2.0f ) {}
 
-    Camera( float vfov, float aspect, float aperture = 1.0f, float focusDistance = FLT_MAX, const vec3& pos = vec3( 0, 0, 0 ), const vec3& up = vec3( 0, 1, 0 ), const vec3& lookat = vec3( 0, 0, -1 ) )
+    LINKAGE Camera( float vfov, float aspect, float aperture = 1.0f, float focusDistance = FLT_MAX, const vector3& pos = vector3( 0, 0, 0 ), const vector3& up = vector3( 0, 1, 0 ), const vector3& lookat = vector3( 0, 0, -1 ) )
     {
         lensRadius = aperture / 2.0f;
 
@@ -38,7 +38,7 @@ public:
             vfov, aspect, aperture, origin.x, origin.y, origin.z, lookat.x, lookat.y, lookat.z, focusDistance, ( origin - lookat ).length() );
     }
 
-    Camera( const Camera& rhs ) :
+    LINKAGE Camera( const Camera& rhs ) :
         origin(rhs.origin),
         leftCorner(rhs.leftCorner),
         horizontal(rhs.horizontal),
@@ -49,20 +49,20 @@ public:
         lensRadius(rhs.lensRadius)
     {}
 
-    ray getRay( float s, float t ) const
+    LINKAGE ray getRay( float s, float t ) const
     {
-        vec3 rand   = lensRadius * randomOnUnitDisk();
-        vec3 offset = u * rand.x + v * rand.y;
+        vector3 rand   = lensRadius * randomOnUnitDisk();
+        vector3 offset = u * rand.x + v * rand.y;
         return ray( origin + offset, leftCorner + ( s * horizontal ) + ( (1.0f - t) * vertical ) - origin - offset );
     }
 
-    vec3  origin;
-    vec3  leftCorner;
-    vec3  horizontal;
-    vec3  vertical;
-    vec3  u;
-    vec3  v;
-    vec3  w;
+    vector3  origin;
+    vector3  leftCorner;
+    vector3  horizontal;
+    vector3  vertical;
+    vector3  u;
+    vector3  v;
+    vector3  w;
     float lensRadius;
 };
 

@@ -1,7 +1,8 @@
 #pragma once
 
+#include "vector_cuda.h"
+
 #include <csignal>
-#include "vector.h"
 
 #define USE_CUDA
 
@@ -41,9 +42,9 @@ namespace pk
 #endif
 
 #elif defined( _WIN32 )
-#define DEBUG_BREAK()                \
-    {                                \
-        DebugBreak();                \
+#define DEBUG_BREAK() \
+    {                 \
+        DebugBreak(); \
     }
 
 #else
@@ -55,7 +56,7 @@ namespace pk
     {                                                           \
         if ( !( x ) ) {                                         \
             printf( "DEBUGCHK [%s:%d]: ", __FILE__, __LINE__ ); \
-            printf( "[%s]\n", #x );                               \
+            printf( "[%s]\n", #x );                             \
             DEBUG_BREAK();                                      \
         }                                                       \
     }
@@ -89,9 +90,9 @@ void check_cuda( cudaError_t result, char const* const function, const char* con
 #define STRINGIFY( x ) #x
 #define XSTRINGIFY( s ) STRINGIFY( s )
 
-bool  delay( size_t ms );
-float random();
-vec3  randomInUnitSphere();
-vec3  randomOnUnitDisk();
+bool    delay( size_t ms );
+float   random();
+vector3 randomInUnitSphere();
+vector3 randomOnUnitDisk();
 
 } // namespace pk

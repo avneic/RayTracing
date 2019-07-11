@@ -1,15 +1,15 @@
 #pragma once
 
 #include "ray.h"
-#include "vector.h"
 #include "scene.h"
+#include "vector_cuda.h"
 
 namespace pk
 {
 
 class IMaterial {
 public:
-    virtual bool scatter( const ray& r, const hit_info& hit, vec3* attenuation, ray* scattered ) const = 0;
+    virtual bool scatter( const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered ) const = 0;
 };
 
 
@@ -19,12 +19,12 @@ public:
         albedo( 1.0f, 1.0f, 1.0f ){};
     Diffuse( float r, float g, float b ) :
         albedo( r, g, b ) {}
-    Diffuse( vec3 a ) :
+    Diffuse( vector3 a ) :
         albedo( a ) {}
 
-    virtual bool scatter( const ray& r, const hit_info& hit, vec3* attenuation, ray* scattered ) const;
+    virtual bool scatter( const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered ) const;
 
-    vec3 albedo;
+    vector3 albedo;
 };
 
 
@@ -36,24 +36,24 @@ public:
     Metal( float r, float g, float b, float blur = 0.0f ) :
         albedo( r, g, b ),
         blur( blur ) {}
-    Metal( vec3 a, float blur = 0.0f ) :
+    Metal( vector3 a, float blur = 0.0f ) :
         albedo( a ),
         blur( blur ) {}
 
-    virtual bool scatter( const ray& r, const hit_info& hit, vec3* attenuation, ray* scattered ) const;
+    virtual bool scatter( const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered ) const;
 
-    vec3  albedo;
-    float blur;
+    vector3 albedo;
+    float   blur;
 };
 
 class Glass : virtual public IMaterial {
 public:
     Glass() :
-        refractionIndex(1.0f) {}
-    Glass(float ri) :
-        refractionIndex(ri) {}
+        refractionIndex( 1.0f ) {}
+    Glass( float ri ) :
+        refractionIndex( ri ) {}
 
-    virtual bool scatter( const ray& r, const hit_info& hit, vec3* attenuation, ray* scattered ) const;
+    virtual bool scatter( const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered ) const;
 
     float refractionIndex;
 };

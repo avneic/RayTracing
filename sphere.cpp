@@ -14,7 +14,7 @@ Sphere::Sphere() :
 {
 }
 
-Sphere::Sphere( const vec3& pos, float r, IMaterial* material ) :
+Sphere::Sphere( const vector3& pos, float r, IMaterial* material ) :
     center( pos ),
     radius( r ),
     material( material )
@@ -25,10 +25,10 @@ bool Sphere::hit( const ray& r, float min, float max, hit_info* p_hit ) const
 {
     assert( p_hit );
 
-    vec3  oc = r.origin - center;
-    float a  = r.direction.dot( r.direction );
-    float b  = oc.dot( r.direction );
-    float c  = oc.dot( oc ) - ( radius * radius );
+    vector3 oc = r.origin - center;
+    float   a  = r.direction.dot( r.direction );
+    float   b  = oc.dot( r.direction );
+    float   c  = oc.dot( oc ) - ( radius * radius );
 
     float discriminant = b * b - a * c;
 

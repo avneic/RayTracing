@@ -29,21 +29,21 @@ float random()
     return _random( _gen );
 }
 
-vec3 randomInUnitSphere()
+vector3 randomInUnitSphere()
 {
-    vec3 point;
+    vector3 point;
     do {
-        point = 2.0f * vec3( random(), random(), random() ) - vec3( 1, 1, 1 );
+        point = 2.0f * vector3( random(), random(), random() ) - vector3( 1, 1, 1 );
     } while ( point.squared_length() >= 1.0f );
 
     return point;
 }
 
-vec3 randomOnUnitDisk()
+vector3 randomOnUnitDisk()
 {
-    vec3 point;
+    vector3 point;
     do {
-        point = 2.0f * vec3( random(), random(), 0.0f ) - vec3( 1.0f, 1.0f, 0.0f );
+        point = 2.0f * vector3( random(), random(), 0.0f ) - vector3( 1.0f, 1.0f, 0.0f );
     } while ( point.dot( point ) >= 1.0f );
 
     return point;

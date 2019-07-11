@@ -1,56 +1,206 @@
-#include "raytracer.h"
-
 #include "material.h"
 #include "perf_timer.h"
 #include "ray.h"
+#include "raytracer.h"
 #include "scene.h"
 #include "vector_cuda.h"
 
 #include <cstdint>
+#include <cassert>
 #include <cstdio>
 #include <cuda_runtime.h>
 
 namespace pk
 {
 
-__global__ void render( uint32_t *framebuffer, uint32_t max_x, uint32_t max_y )
-{
-    unsigned  x   = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned  y   = blockIdx.y * blockDim.y + threadIdx.y;
+//static __global__ void render( uint32_t* framebuffer, uint32_t max_x, uint32_t max_y, const vector3& origin, const vector3& leftCorner, const vector3& horizontal, const vector3& vertical );
+static __global__ void render( uint32_t* framebuffer, uint32_t max_x, uint32_t max_y );
+static __device__ vector3 _color( const ray& r, const Scene* scene, unsigned depth, unsigned max_depth );
+static __device__ vector3 _background( const ray& r );
+static __device__ bool sphere_hit(const vector3& center, float radius, const ray& r);
+static __device__ bool sphere_hit(const vector3& center, float radius, const ray& r, float min, float max, hit_info* p_hit);
 
-    if ( x >= max_x || y >= max_y )
-        return;
 
-    uint8_t r = uint8_t( (float( x ) / max_x) * 255.0f);
-    uint8_t g = uint8_t( (float( y ) / max_y) * 255.0f);
-    uint8_t b = uint8_t((0.2f * 255.0f));
-    uint32_t rgb = ( (uint32_t)r << 24 ) | ( (uint32_t)g << 16 ) | ( (uint32_t)b << 8 );
+//__global__ void render( uint32_t* framebuffer, uint32_t max_x, uint32_t max_y )
+//{
+//    unsigned x = blockIdx.x * blockDim.x + threadIdx.x;
+//    unsigned y = blockIdx.y * blockDim.y + threadIdx.y;
+//
+//    if ( x >= max_x || y >= max_y )
+//        return;
+//
+//    uint8_t  r   = uint8_t( ( float( x ) / max_x ) * 255.0f );
+//    uint8_t  g   = uint8_t( ( float( y ) / max_y ) * 255.0f );
+//    uint8_t  b   = uint8_t( ( 0.2f * 255.0f ) );
+//    uint32_t rgb = ( (uint32_t)r << 24 ) | ( (uint32_t)g << 16 ) | ( (uint32_t)b << 8 );
+//
+//    unsigned p       = ( y * max_x ) + ( x );
+//    framebuffer[ p ] = rgb;
+//}
 
-    unsigned p = (y * max_x) + ( x );
-    framebuffer[p] = rgb;
-}
-
-int renderSceneCUDA( const Scene& scene, const Camera& camera, unsigned rows, unsigned cols, uint32_t* frameBuffer, unsigned num_aa_samples, unsigned max_ray_depth, unsigned numThreads, unsigned blockSize, bool debug, bool recursive )
+int renderSceneCUDA( const Scene& scene, const Camera& camera, unsigned rows, unsigned cols, uint32_t* framebuffer, unsigned num_aa_samples, unsigned max_ray_depth, unsigned numThreads, unsigned blockSize, bool debug, bool recursive )
 {
     PerfTimer t;
 
     blockSize = 16;
 
     // Add +1 to blockSize in case image is not a multiple of blockSize
-    dim3 blocks(cols / blockSize + 1, rows / blockSize + 1);
-    dim3 threads(blockSize, blockSize);
+    dim3 blocks( cols / blockSize + 1, rows / blockSize + 1 );
+    dim3 threads( blockSize, blockSize );
 
-    printf("renderSceneCUDA(): blocks %d,%d,%d threads %d,%d\n", blocks.x, blocks.y, blocks.z, threads.x, threads.y);
+    printf( "renderSceneCUDA(): blocks %d,%d,%d threads %d,%d\n", blocks.x, blocks.y, blocks.z, threads.x, threads.y );
 
-    render<<<blocks, threads >>>(frameBuffer, cols, rows);
-    //render<<<(rows*cols), 1>>>(frameBuffer, cols, rows);
+    //render<<<blocks, threads>>>( framebuffer, cols, rows );
+    //render<<<blocks, threads>>>( framebuffer, cols, rows, camera.origin, camera.leftCorner, camera.horizontal, camera.vertical );
+    render<<<blocks, threads>>>( framebuffer, cols, rows );
 
-    CHECK_CUDA(cudaGetLastError());
-    CHECK_CUDA(cudaDeviceSynchronize());
-    
-    printf("renderSceneCUDA: %f ms\n", t.ElapsedMilliseconds());
+    CHECK_CUDA( cudaGetLastError() );
+    CHECK_CUDA( cudaDeviceSynchronize() );
+
+    printf( "renderSceneCUDA: %f ms\n", t.ElapsedMilliseconds() );
 
     return 0;
 }
+
+//__global__ void render( uint32_t* framebuffer, uint32_t max_x, uint32_t max_y, const vector3& origin, const vector3& leftCorner, const vector3& horizontal, const vector3& vertical )
+__global__ void render( uint32_t* framebuffer, uint32_t max_x, uint32_t max_y )
+{
+    unsigned x = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if ( x >= max_x || y >= max_y )
+        return;
+
+    vector3 origin( 0, 0, 0 );
+    vector3 leftCorner( -2.0f, 1.0f, -1.0f );
+    vector3 horizontal( 4.0f, 0.0f, 0.0f );
+    vector3 vertical( 0.0f, -2.0f, 0.0f );
+
+    float u = (float)x / (float)max_x;
+    float v = (float)y / (float)max_y;
+
+    ray     r( origin, leftCorner + u * horizontal + v * vertical );
+    vector3 rgb = _color( r, nullptr, 0, 0 );
+
+    unsigned p       = ( y * max_x ) + ( x );
+    framebuffer[ p ] = ( (uint32_t)(rgb.x * 255.99f) << 24 ) | ( (uint32_t)(rgb.y * 255.99f) << 16 ) | ( (uint32_t)(rgb.z * 255.99f) << 8 );
+
+    //printf("%d,%d: (%f, %f, %f) [%f %f %f] 0x%x\n",
+    //    x, y,
+    //    r.direction.x, r.direction.y, r.direction.z,
+    //    rgb.x, rgb.y, rgb.z,
+    //    framebuffer[p]);
+}
+
+static __device__ vector3 _color( const ray& r, const Scene* scene, unsigned depth, unsigned max_depth )
+{
+    // TEST TEST: define a single on-GPU sphere
+    vector3 center(0, 0, -1);
+    float radius = 0.5f;
+
+    float min = 0.001;
+    float max = FLT_MAX;
+    hit_info hit;
+
+    //if (sphere_hit( center, radius, r, min, max, &hit)) {
+    if (sphere_hit( center, radius, r)) {
+        return vector3(1, 0, 0);
+    }
+    else {
+        return _background( r );
+    }
+}
+
+/*
+// Non-recursive version
+static __device__ vector3 _color( const ray& r, const Scene* scene, unsigned depth, unsigned max_depth )
+{
+    hit_info hit;
+    vector3  attenuation;
+    ray      scattered = r;
+    vector3  color( 1, 1, 1 );
+
+    for ( unsigned i = 0; i < max_depth; i++ ) {
+        if ( scene->hit( scattered, 0.001f, FLT_MAX, &hit ) ) {
+#if defined( NORMAL_SHADE )
+            vec3 normal = ( r.point( hit.distance ) - vec3( 0, 0, -1 ) ).normalized();
+            return 0.5f * vec3( normal.x + 1, normal.y + 1, normal.z + 1 );
+#elif defined( DIFFUSE_SHADE )
+            if ( depth < max_depth ) {
+                vec3 target = hit.point + hit.normal + randomInUnitSphere();
+                return 0.5f * _color( ray( hit.point, target - hit.point ), scene, depth + 1 );
+            } else {
+                return vec3( 0, 0, 0 );
+            }
+#else
+            if ( hit.material && hit.material->scatter( scattered, hit, &attenuation, &scattered ) ) {
+                color *= attenuation;
+            } else {
+                break;
+            }
+#endif
+        } else {
+            color *= _background( scattered );
+            break;
+        }
+    }
+
+    return color;
+}
+*/
+
+static __device__ vector3 _background( const ray& r )
+{
+    vector3 unitDirection = r.direction.normalized();
+    float   t             = 0.5f * ( unitDirection.y + 1.0f );
+
+    return ( 1.0f - t ) * vector3( 1.0f, 1.0f, 1.0f ) + t * vector3( 0.5f, 0.7f, 1.0f );
+}
+
+
+static __device__ bool sphere_hit(const vector3& center, float radius, const ray& r)
+{
+    vector3 oc = r.origin - center;
+    float a = r.direction.dot(r.direction);
+    float b = 2.0f * oc.dot(r.direction);
+    float c = oc.dot(oc) - (radius * radius);
+    float discriminant = b * b - 4 * a*c;
+    return (discriminant > 0);
+}
+
+static __device__ bool sphere_hit( const vector3& center, float radius, const ray& r, float min, float max, hit_info* p_hit )
+{
+    assert( p_hit );
+
+    vector3 oc = r.origin - center;
+    float   a  = r.direction.dot( r.direction );
+    float   b  = oc.dot( r.direction );
+    float   c  = oc.dot( oc ) - ( radius * radius );
+
+    float discriminant = b * b - a * c;
+
+    if ( discriminant > 0 ) {
+        float t = ( -b - sqrt( discriminant ) ) / a;
+        if ( t < max && t > min ) {
+            p_hit->distance = t;
+            p_hit->point    = r.point( t );
+            p_hit->normal   = ( p_hit->point - center ) / radius;
+            //p_hit->material = material;
+            return true;
+        }
+
+        t = ( -b + sqrt( discriminant ) ) / a;
+        if ( t < max && t > min ) {
+            p_hit->distance = t;
+            p_hit->point    = r.point( t );
+            p_hit->normal   = ( p_hit->point - center ) / radius;
+            //p_hit->material = material;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 
 } // namespace pk

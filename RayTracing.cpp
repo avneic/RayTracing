@@ -12,7 +12,7 @@
 #include "sphere.h"
 #include "test.h"
 #include "utils.h"
-#include "vector.h"
+#include "vector_cuda.h"
 
 #include <cassert>
 #include <cstdint>
@@ -21,8 +21,8 @@
 
 using namespace pk;
 
-const unsigned int COLS = 1280;
-const unsigned int ROWS = 1280;
+const unsigned int COLS = 1600;
+const unsigned int ROWS = 800;
 
 // Anti-aliasing
 const unsigned int NUM_AA_SAMPLES = 50;
@@ -60,8 +60,8 @@ int main( int argc, char** argv )
         blockSize              = std::stoi( arg );
     }
 
-    //bool cuda = false;
-    bool cuda = true;
+    bool cuda = false;
+    //bool cuda = true;
     if ( args.cmdOptionExists( "-c" ) ) {
         cuda = true;
     }
@@ -81,9 +81,9 @@ int main( int argc, char** argv )
     //
     Scene* scene = _randomScene();
 
-    vec3  origin( 13, 2, 3 );
-    vec3  lookat( 0, 0, 0 );
-    vec3  up( 0, 1, 0 );
+    vector3  origin( 13, 2, 3 );
+    vector3  lookat( 0, 0, 0 );
+    vector3  up( 0, 1, 0 );
     float vfov   = 20;
     float aspect = float( COLS ) / float( ROWS );
 
@@ -125,7 +125,7 @@ int main( int argc, char** argv )
     // Save image
     //
     fprintf( file, "P3\n" );
-    fprintf( file, "%d %d\n", ROWS, COLS );
+    fprintf( file, "%d %d\n", COLS, ROWS );
     fprintf( file, "255\n" );
 
     for ( uint32_t y = 0; y < ROWS; y++ ) {
@@ -157,18 +157,18 @@ static Scene* _randomScene()
 {
     Scene* scene = new Scene();
 
-    scene->objects.push_back( new Sphere( vec3( 0, -1000.0f, 0 ), 1000, new Diffuse( vec3( 0.5f, 0.5f, 0.5f ) ) ) );
+    scene->objects.push_back( new Sphere( vector3( 0, -1000.0f, 0 ), 1000, new Diffuse( vector3( 0.5f, 0.5f, 0.5f ) ) ) );
 
     for ( int a = -11; a < 11; a++ ) {
         for ( int b = -11; b < 11; b++ ) {
             float material = random();
-            vec3  center( a + 0.9f * random(), 0.2f, b + 0.9f * random() );
+            vector3  center( a + 0.9f * random(), 0.2f, b + 0.9f * random() );
 
-            if ( ( center - vec3( 4.0f, 0.2f, 0.0f ) ).length() > 0.9f ) {
+            if ( ( center - vector3( 4.0f, 0.2f, 0.0f ) ).length() > 0.9f ) {
                 if ( material < 0.8f ) {
-                    scene->objects.push_back( new Sphere( center, 0.2f, new Diffuse( vec3( random() * random(), random() * random(), random() * random() ) ) ) );
+                    scene->objects.push_back( new Sphere( center, 0.2f, new Diffuse( vector3( random() * random(), random() * random(), random() * random() ) ) ) );
                 } else if ( material > 0.95f ) {
-                    scene->objects.push_back( new Sphere( center, 0.2f, new Metal( vec3( 0.5f * ( 1 + random() ), 0.5f * ( 1 + random() ), 0.5f * ( 1 + random() ) ), 0.5f * random() ) ) );
+                    scene->objects.push_back( new Sphere( center, 0.2f, new Metal( vector3( 0.5f * ( 1 + random() ), 0.5f * ( 1 + random() ), 0.5f * ( 1 + random() ) ), 0.5f * random() ) ) );
                 } else {
                     scene->objects.push_back( new Sphere( center, 0.2f, new Glass( 1.5f ) ) );
                 }
@@ -176,9 +176,9 @@ static Scene* _randomScene()
         }
     }
 
-    scene->objects.push_back( new Sphere( vec3( -4, 1, 0 ), 1.0f, new Diffuse( vec3( 0.4f, 0.2f, 0.1f ) ) ) );
-    scene->objects.push_back( new Sphere( vec3( 0, 1, 0 ), 1.0f, new Glass( 1.5f ) ) );
-    scene->objects.push_back( new Sphere( vec3( 4, 1, 0 ), 1.0f, new Metal( vec3( 0.7f, 0.6f, 0.5f ), 0.0f ) ) );
+    scene->objects.push_back( new Sphere( vector3( -4, 1, 0 ), 1.0f, new Diffuse( vector3( 0.4f, 0.2f, 0.1f ) ) ) );
+    scene->objects.push_back( new Sphere( vector3( 0, 1, 0 ), 1.0f, new Glass( 1.5f ) ) );
+    scene->objects.push_back( new Sphere( vector3( 4, 1, 0 ), 1.0f, new Metal( vector3( 0.7f, 0.6f, 0.5f ), 0.0f ) ) );
 
     return scene;
 }

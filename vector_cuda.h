@@ -12,21 +12,21 @@ public:
     __host__ __device__ vector3() {}
     __host__ __device__ vector3( float e0, float e1, float e2 )
     {
-        e[ 0 ] = e0;
-        e[ 1 ] = e1;
-        e[ 2 ] = e2;
+        x = e0;
+        y = e1;
+        z = e2;
     }
-    __host__ __device__ inline float x() const { return e[ 0 ]; }
-    __host__ __device__ inline float y() const { return e[ 1 ]; }
-    __host__ __device__ inline float z() const { return e[ 2 ]; }
-    __host__ __device__ inline float r() const { return e[ 0 ]; }
-    __host__ __device__ inline float g() const { return e[ 1 ]; }
-    __host__ __device__ inline float b() const { return e[ 2 ]; }
+    //__host__ __device__ inline float x() const { return x; }
+    //__host__ __device__ inline float y() const { return y; }
+    //__host__ __device__ inline float z() const { return z; }
+    __host__ __device__ inline float r() const { return x; }
+    __host__ __device__ inline float g() const { return y; }
+    __host__ __device__ inline float b() const { return z; }
 
     __host__ __device__ inline const vector3 &operator+() const { return *this; }
-    __host__ __device__ inline vector3 operator-() const { return vector3( -e[ 0 ], -e[ 1 ], -e[ 2 ] ); }
-    __host__ __device__ inline float operator[]( int i ) const { return e[ i ]; }
-    __host__ __device__ inline float &operator[]( int i ) { return e[ i ]; };
+    __host__ __device__ inline vector3 operator-() const { return vector3( -x, -y, -z ); }
+    //__host__ __device__ inline float operator[]( int i ) const { return e[ i ]; }
+    //__host__ __device__ inline float &operator[]( int i ) { return e[ i ]; };
 
     __host__ __device__ inline vector3 &operator+=( const vector3 &v2 );
     __host__ __device__ inline vector3 &operator-=( const vector3 &v2 );
@@ -35,130 +35,159 @@ public:
     __host__ __device__ inline vector3 &operator*=( const float t );
     __host__ __device__ inline vector3 &operator/=( const float t );
 
-    __host__ __device__ inline float length() const { return sqrt( e[ 0 ] * e[ 0 ] + e[ 1 ] * e[ 1 ] + e[ 2 ] * e[ 2 ] ); }
-    __host__ __device__ inline float squared_length() const { return e[ 0 ] * e[ 0 ] + e[ 1 ] * e[ 1 ] + e[ 2 ] * e[ 2 ]; }
-    __host__ __device__ inline void make_unit_vector();
+    __host__ __device__ inline float length() const { return sqrt( x * x + y * y + z * z ); }
+    __host__ __device__ inline float squared_length() const { return x * x + y * y + z * z; }
+    //__host__ __device__ inline void make_unit_vector();
 
+    __host__ __device__ inline vector3 normalized() const
+    {
+        vector3 v = *this;
+        v.normalize();
 
-    float e[ 3 ];
+        return v;
+    }
+
+    __host__ __device__ inline void normalize()
+    {
+        float length = (float)sqrt( x * x + y * y + z * z );
+        x /= length;
+        y /= length;
+        z /= length;
+    }
+
+    __host__ __device__ inline vector3 cross( const vector3& v ) const
+    {
+        return vector3( y * v.z - z * v.y,
+            z * v.x - x * v.z,
+            x * v.y - y * v.x );
+    }
+
+    __host__ __device__ inline float dot( const vector3& v ) const
+    {
+        return (x * v.x) + (y * v.y) + (z * v.z);
+    }
+
+    float x;
+    float y;
+    float z;
 };
 
 
 inline std::istream &operator>>( std::istream &is, vector3 &t )
 {
-    is >> t.e[ 0 ] >> t.e[ 1 ] >> t.e[ 2 ];
+    is >> t.x >> t.y >> t.z;
     return is;
 }
 
 inline std::ostream &operator<<( std::ostream &os, const vector3 &t )
 {
-    os << t.e[ 0 ] << " " << t.e[ 1 ] << " " << t.e[ 2 ];
+    os << t.x << " " << t.y << " " << t.z;
     return os;
 }
 
-__host__ __device__ inline void vector3::make_unit_vector()
-{
-    float k = 1.0 / sqrt( e[ 0 ] * e[ 0 ] + e[ 1 ] * e[ 1 ] + e[ 2 ] * e[ 2 ] );
-    e[ 0 ] *= k;
-    e[ 1 ] *= k;
-    e[ 2 ] *= k;
-}
+//__host__ __device__ inline void vector3::make_unit_vector()
+//{
+//    float k = 1.0f / sqrt( x * x + y * y + z * z );
+//    x *= k;
+//    y *= k;
+//    z *= k;
+//}
 
 __host__ __device__ inline vector3 operator+( const vector3 &v1, const vector3 &v2 )
 {
-    return vector3( v1.e[ 0 ] + v2.e[ 0 ], v1.e[ 1 ] + v2.e[ 1 ], v1.e[ 2 ] + v2.e[ 2 ] );
+    return vector3( v1.x + v2.x, v1.y + v2.y, v1.z + v2.z );
 }
 
 __host__ __device__ inline vector3 operator-( const vector3 &v1, const vector3 &v2 )
 {
-    return vector3( v1.e[ 0 ] - v2.e[ 0 ], v1.e[ 1 ] - v2.e[ 1 ], v1.e[ 2 ] - v2.e[ 2 ] );
+    return vector3( v1.x - v2.x, v1.y - v2.y, v1.z - v2.z );
 }
 
 __host__ __device__ inline vector3 operator*( const vector3 &v1, const vector3 &v2 )
 {
-    return vector3( v1.e[ 0 ] * v2.e[ 0 ], v1.e[ 1 ] * v2.e[ 1 ], v1.e[ 2 ] * v2.e[ 2 ] );
+    return vector3( v1.x * v2.x, v1.y * v2.y, v1.z * v2.z );
 }
 
 __host__ __device__ inline vector3 operator/( const vector3 &v1, const vector3 &v2 )
 {
-    return vector3( v1.e[ 0 ] / v2.e[ 0 ], v1.e[ 1 ] / v2.e[ 1 ], v1.e[ 2 ] / v2.e[ 2 ] );
+    return vector3( v1.x / v2.x, v1.y / v2.y, v1.z / v2.z );
 }
 
 __host__ __device__ inline vector3 operator*( float t, const vector3 &v )
 {
-    return vector3( t * v.e[ 0 ], t * v.e[ 1 ], t * v.e[ 2 ] );
+    return vector3( t * v.x, t * v.y, t * v.z );
 }
 
 __host__ __device__ inline vector3 operator/( vector3 v, float t )
 {
-    return vector3( v.e[ 0 ] / t, v.e[ 1 ] / t, v.e[ 2 ] / t );
+    return vector3( v.x / t, v.y / t, v.z / t );
 }
 
 __host__ __device__ inline vector3 operator*( const vector3 &v, float t )
 {
-    return vector3( t * v.e[ 0 ], t * v.e[ 1 ], t * v.e[ 2 ] );
+    return vector3( t * v.x, t * v.y, t * v.z );
 }
 
 __host__ __device__ inline float dot( const vector3 &v1, const vector3 &v2 )
 {
-    return v1.e[ 0 ] * v2.e[ 0 ] + v1.e[ 1 ] * v2.e[ 1 ] + v1.e[ 2 ] * v2.e[ 2 ];
+    return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
 }
 
 __host__ __device__ inline vector3 cross( const vector3 &v1, const vector3 &v2 )
 {
-    return vector3( ( v1.e[ 1 ] * v2.e[ 2 ] - v1.e[ 2 ] * v2.e[ 1 ] ),
-        ( -( v1.e[ 0 ] * v2.e[ 2 ] - v1.e[ 2 ] * v2.e[ 0 ] ) ),
-        ( v1.e[ 0 ] * v2.e[ 1 ] - v1.e[ 1 ] * v2.e[ 0 ] ) );
+    return vector3( ( v1.y * v2.z - v1.z * v2.y ),
+        ( -( v1.x * v2.z - v1.z * v2.x ) ),
+        ( v1.x * v2.y - v1.y * v2.x ) );
 }
 
 
 __host__ __device__ inline vector3 &vector3::operator+=( const vector3 &v )
 {
-    e[ 0 ] += v.e[ 0 ];
-    e[ 1 ] += v.e[ 1 ];
-    e[ 2 ] += v.e[ 2 ];
+    x += v.x;
+    y += v.y;
+    z += v.z;
     return *this;
 }
 
 __host__ __device__ inline vector3 &vector3::operator*=( const vector3 &v )
 {
-    e[ 0 ] *= v.e[ 0 ];
-    e[ 1 ] *= v.e[ 1 ];
-    e[ 2 ] *= v.e[ 2 ];
+    x *= v.x;
+    y *= v.y;
+    z *= v.z;
     return *this;
 }
 
 __host__ __device__ inline vector3 &vector3::operator/=( const vector3 &v )
 {
-    e[ 0 ] /= v.e[ 0 ];
-    e[ 1 ] /= v.e[ 1 ];
-    e[ 2 ] /= v.e[ 2 ];
+    x /= v.x;
+    y /= v.y;
+    z /= v.z;
     return *this;
 }
 
 __host__ __device__ inline vector3 &vector3::operator-=( const vector3 &v )
 {
-    e[ 0 ] -= v.e[ 0 ];
-    e[ 1 ] -= v.e[ 1 ];
-    e[ 2 ] -= v.e[ 2 ];
+    x -= v.x;
+    y -= v.y;
+    z -= v.z;
     return *this;
 }
 
 __host__ __device__ inline vector3 &vector3::operator*=( const float t )
 {
-    e[ 0 ] *= t;
-    e[ 1 ] *= t;
-    e[ 2 ] *= t;
+    x *= t;
+    y *= t;
+    z *= t;
     return *this;
 }
 
 __host__ __device__ inline vector3 &vector3::operator/=( const float t )
 {
-    float k = 1.0 / t;
+    float k = 1.0f / t;
 
-    e[ 0 ] *= k;
-    e[ 1 ] *= k;
-    e[ 2 ] *= k;
+    x *= k;
+    y *= k;
+    z *= k;
     return *this;
 }
 

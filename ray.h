@@ -1,22 +1,28 @@
 #pragma once
-#include "vector.h"
+#include "vector_cuda.h"
 
 namespace pk
 {
 
+//#ifdef __CUDA__
+#define LINKAGE __device__ 
+//#else
+//#define LINKAGE
+//#endif
+
 class ray {
 public:
-    ray() = default;
-    ray( const ray& rhs ) :
+    LINKAGE ray() {};
+    LINKAGE ray( const ray& rhs ) :
         origin(rhs.origin),
         direction(rhs.direction)
     {}
-    ray( const vec3& origin, const vec3& direction ) { this->origin = origin, this->direction = direction; }
+    LINKAGE ray( const vector3& origin, const vector3& direction ) { this->origin = origin, this->direction = direction; }
 
-    vec3 point( float distance ) const { return origin + (distance * direction); }
+    LINKAGE vector3 point( float distance ) const { return origin + (distance * direction); }
 
-    vec3 origin;
-    vec3 direction;
+    vector3 origin;
+    vector3 direction;
 };
 
 } // namespace pk

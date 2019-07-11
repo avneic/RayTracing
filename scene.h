@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ray.h"
-#include "vector.h"
+#include "vector_cuda.h"
 
 #include <stdbool.h>
 #include <vector>
@@ -9,15 +9,21 @@
 namespace pk
 {
 
+//#ifdef __CUDA__
+//#define LINKAGE __device__
+//#else
+//#define LINKAGE
+//#endif
+
 class IMaterial;
 
 typedef struct _hit {
     float      distance;
-    vec3       point;
-    vec3       normal;
+    vector3    point;
+    vector3    normal;
     IMaterial* material;
 
-    _hit() :
+    LINKAGE _hit() :
         distance( 0.0f ),
         point( 0, 0, 0 ),
         normal( 0, 0, 0 ),
@@ -26,17 +32,18 @@ typedef struct _hit {
 
 class IVisible {
 public:
-    virtual ~IVisible(){};
-    virtual bool hit( const ray& r, float min, float max, hit_info* p_hit ) const = 0;
+    LINKAGE IVisible() {};
+    virtual LINKAGE ~IVisible(){};
+    virtual LINKAGE bool hit( const ray& r, float min, float max, hit_info* p_hit ) const = 0;
 };
 
 
 class Scene : virtual public IVisible {
 public:
-    Scene()          = default;
-    virtual ~Scene() = default;
+    LINKAGE Scene() {};
+    LINKAGE virtual ~Scene() {};
 
-    virtual bool hit( const ray& r, float min, float max, hit_info* p_hit ) const
+    virtual LINKAGE bool hit( const ray& r, float min, float max, hit_info* p_hit ) const
     {
         bool     rval = false;
         hit_info hit;
