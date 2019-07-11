@@ -16,6 +16,9 @@ public:
         y = e1;
         z = e2;
     }
+
+    __host__ __device__ ~vector3() {}
+
     //__host__ __device__ inline float x() const { return x; }
     //__host__ __device__ inline float y() const { return y; }
     //__host__ __device__ inline float z() const { return z; }

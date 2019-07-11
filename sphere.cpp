@@ -7,21 +7,21 @@
 namespace pk
 {
 
-Sphere::Sphere() :
+LINKAGE Sphere::Sphere() :
     center( 0, 0, 0 ),
     radius( 1.0f ),
     material( nullptr )
 {
 }
 
-Sphere::Sphere( const vector3& pos, float r, IMaterial* material ) :
+LINKAGE Sphere::Sphere( const vector3& pos, float r, IMaterial* material ) :
     center( pos ),
     radius( r ),
     material( material )
 {
 }
 
-bool Sphere::hit( const ray& r, float min, float max, hit_info* p_hit ) const
+LINKAGE bool Sphere::hit( const ray& r, float min, float max, hit_info* p_hit ) const
 {
     assert( p_hit );
 
