@@ -16,8 +16,8 @@ namespace pk
 {
 
 
-#define NORMAL_SHADE
-//#define DIFFUSE_SHADE
+//#define NORMAL_SHADE
+#define DIFFUSE_SHADE
 
 typedef struct _sphere {
     vector3    center;
@@ -50,14 +50,13 @@ typedef struct _RenderThreadContext {
 
 
 static __global__ void _createCamera( Camera* pdCamera );
-//static __global__ void _renderInit( int cols, int rows, curandState* pdRandomState );
-//static __global__ void _render( const Camera* camera, uint32_t* framebuffer, uint32_t max_x, uint32_t max_y, const sphere_t* scene, uint32_t sceneSize, curandState* pdRandomState );
 static __global__ void _renderInit( RenderThreadContext* pdContext );
 static __global__ void _render( RenderThreadContext* pdContext );
-static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned max_depth );
+static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned max_depth, curandState* random );
 static __device__ vector3 _background( const ray& r );
 static __device__ bool    _sphereHit( const vector3& center, float radius, const ray& r, float min, float max, hit_info* p_hit );
 static __device__ bool    _sceneHit( const sphere_t* scene, uint32_t sceneSize, const ray& r, float min, float max, hit_info* p_hit );
+static __device__ vector3 _randomInUnitSphere( curandState* random );
 
 
 int renderSceneCUDA( const Scene& scene, const Camera& camera, unsigned rows, unsigned cols, uint32_t* framebuffer, unsigned num_aa_samples, unsigned max_ray_depth, unsigned numThreads, unsigned blockSize, bool debug, bool recursive )
@@ -171,37 +170,28 @@ static __global__ void _render( RenderThreadContext* ctx )
     if ( x >= ctx->cols || y >= ctx->rows )
         return;
 
-    float    u = (float)x / (float)ctx->cols;
-    float    v = (float)y / (float)ctx->rows;
-    unsigned p = ( y * ctx->cols ) + ( x );
-
+    unsigned    p      = ( y * ctx->cols ) + ( x );
     curandState random = ctx->random[ p ];
     vector3     color( 0, 0, 0 );
+
     for ( uint32_t s = 0; s < ctx->num_aa_samples; s++ ) {
         float u = float( x + curand_uniform( &random ) ) / float( ctx->cols );
         float v = float( y + curand_uniform( &random ) ) / float( ctx->rows );
         ray   r = ctx->camera->getRay( u, v );
 
-        color += _color( r, ctx->scene, ctx->sceneSize, ctx->max_ray_depth );
+        color += _color( r, ctx->scene, ctx->sceneSize, ctx->max_ray_depth, &random );
     }
     color /= float( ctx->num_aa_samples );
 
-    //ray r = ctx->camera->getRay( u, v );
-    //vector3 color = _color( r, ctx->scene, ctx->sceneSize, 50 );
-
     // Apply 2.0 Gamma correction
     color = vector3( sqrt( color.r() ), sqrt( color.g() ), sqrt( color.b() ) );
-
-
-    //curandState random = pdRandomState[ p ];
-    //rgb                = vector3( curand_uniform( &random ), curand_uniform( &random ), curand_uniform( &random ) );
 
     ctx->framebuffer[ p ] = ( ( uint32_t )( color.x * 255.99f ) << 24 ) | ( ( uint32_t )( color.y * 255.99f ) << 16 ) | ( ( uint32_t )( color.z * 255.99f ) << 8 );
 }
 
 
 // Non-recursive version
-static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned max_depth )
+static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned max_depth, curandState* random )
 {
     hit_info hit;
     vector3  attenuation;
@@ -214,12 +204,9 @@ static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t 
             vector3 normal = ( r.point( hit.distance ) - vector3( 0, 0, -1 ) ).normalized();
             return 0.5f * vector3( normal.x + 1.0f, normal.y + 1.0f, normal.z + 1.0f );
 #elif defined( DIFFUSE_SHADE )
-            //if ( depth < max_depth ) {
-            vector3 target = hit.point + hit.normal + _randomInUnitSphere();
-            color          = 0.5f * _color( ray( hit.point, target - hit.point ), scene, sceneSize, depth + 1, max_depth );
-            //} else {
-            //    return vector3( 0, 0, 0 );
-            //}
+            vector3 target = hit.point + hit.normal + _randomInUnitSphere( random );
+            scattered      = ray( hit.point, target - hit.point );
+            color *= 0.5f;
 #else
             //if (hit.material && hit.material->scatter(scattered, hit, &attenuation, &scattered)) {
             //    color *= attenuation;
@@ -304,5 +291,16 @@ static __device__ bool _sceneHit( const sphere_t* scene, uint32_t sceneSize, con
     return rval;
 }
 
+
+static __device__ vector3 _randomInUnitSphere( curandState* random )
+{
+    vector3      point;
+    unsigned int maxTries = 20;
+    do {
+        point = 2.0f * vector3( curand_uniform( random ), curand_uniform( random ), curand_uniform( random ) ) - vector3( 1, 1, 1 );
+    } while ( point.squared_length() >= 1.0f && maxTries-- );
+
+    return point;
+}
 
 } // namespace pk
