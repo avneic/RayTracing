@@ -4,10 +4,10 @@
 #include "utils.h"
 #include "vector_cuda.h"
 
-#include <cstdint>
-#include <limits.h>
 #include <cfloat> // for FLT_MAX
+#include <cstdint>
 #include <cstdio>
+#include <limits.h>
 
 namespace pk
 {
@@ -19,6 +19,12 @@ public:
 
     LINKAGE Camera( float vfov, float aspect, float aperture = 1.0f, float focusDistance = FLT_MAX, const vector3& pos = vector3( 0, 0, 0 ), const vector3& up = vector3( 0, 1, 0 ), const vector3& lookat = vector3( 0, 0, -1 ) )
     {
+        this->vfov          = vfov;
+        this->aspect        = aspect;
+        this->aperture      = aperture;
+        this->lookat        = lookat;
+        this->focusDistance = focusDistance;
+
         lensRadius = aperture / 2.0f;
 
         float theta      = RADIANS( vfov );
@@ -34,36 +40,63 @@ public:
         horizontal = 2 * halfWidth * focusDistance * u;
         vertical   = 2 * halfHeight * focusDistance * v;
 
-        printf( "Camera: fov %4.1f aspect %4.1f aperture %4.1f (%f, %f, %f) -> (%f, %f, %f) (%f : %f)\n",
-            vfov, aspect, aperture, origin.x, origin.y, origin.z, lookat.x, lookat.y, lookat.z, focusDistance, ( origin - lookat ).length() );
+        printf( "Camera: fov %4.1f aspect %4.1f aperture %4.1f (%f, %f, %f) -> (%f, %f, %f) (%f : %f) h(%f, %f, %f) v(%f, %f, %f) l(%f, %f, %f)\n",
+            vfov, aspect, aperture, origin.x, origin.y, origin.z, lookat.x, lookat.y, lookat.z, focusDistance, ( origin - lookat ).length(),
+            horizontal.x, horizontal.y, horizontal.z,
+            vertical.x, vertical.y, vertical.z,
+            leftCorner.x, leftCorner.y, leftCorner.z );
     }
 
     LINKAGE Camera( const Camera& rhs ) :
-        origin(rhs.origin),
-        leftCorner(rhs.leftCorner),
-        horizontal(rhs.horizontal),
-        vertical(rhs.vertical),
-        u(rhs.u),
-        v(rhs.v),
-        w(rhs.w),
-        lensRadius(rhs.lensRadius)
-    {}
+        origin( rhs.origin ),
+        leftCorner( rhs.leftCorner ),
+        horizontal( rhs.horizontal ),
+        vertical( rhs.vertical ),
+        u( rhs.u ),
+        v( rhs.v ),
+        w( rhs.w ),
+        lensRadius( rhs.lensRadius ),
+
+        vfov( rhs.vfov ),
+        aspect( rhs.aspect ),
+        aperture( rhs.aperture ),
+        lookat( rhs.lookat ),
+        focusDistance( rhs.focusDistance )
+    {
+        printf( "Camera( 0x%p ): fov %4.1f aspect %4.1f aperture %4.1f (%f, %f, %f) -> (%f, %f, %f) (%f : %f) h(%f, %f, %f) v(%f, %f, %f) l(%f, %f, %f)\n",
+            this,
+            vfov, aspect, aperture, origin.x, origin.y, origin.z, lookat.x, lookat.y, lookat.z, focusDistance, ( origin - lookat ).length(),
+            horizontal.x, horizontal.y, horizontal.z,
+            vertical.x, vertical.y, vertical.z,
+            leftCorner.x, leftCorner.y, leftCorner.z );
+    }
 
     LINKAGE ray getRay( float s, float t ) const
     {
+#ifdef __NVCC__
+        vector3 offset( 0, 0, 0 );
+        return ray( origin + offset, leftCorner + ( s * horizontal ) + ( ( 1.0f - t ) * vertical ) - origin - offset );
+#else
         vector3 rand   = lensRadius * randomOnUnitDisk();
         vector3 offset = u * rand.x + v * rand.y;
-        return ray( origin + offset, leftCorner + ( s * horizontal ) + ( (1.0f - t) * vertical ) - origin - offset );
+        return ray( origin + offset, leftCorner + ( s * horizontal ) + ( ( 1.0f - t ) * vertical ) - origin - offset );
+#endif
     }
 
-    vector3  origin;
-    vector3  leftCorner;
-    vector3  horizontal;
-    vector3  vertical;
-    vector3  u;
-    vector3  v;
-    vector3  w;
-    float lensRadius;
+    float   vfov;
+    float   aspect;
+    float   aperture;
+    vector3 lookat;
+    float   focusDistance;
+
+    vector3 origin;
+    vector3 leftCorner;
+    vector3 horizontal;
+    vector3 vertical;
+    vector3 u;
+    vector3 v;
+    vector3 w;
+    float   lensRadius;
 };
 
 } // namespace pk

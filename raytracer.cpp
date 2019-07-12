@@ -17,6 +17,9 @@
 namespace pk
 {
 
+#define NORMAL_SHADE
+//#define DIFFUSE_SHADE
+
 static vector3 _color_recursive( const ray& r, const Scene* scene, unsigned depth, unsigned max_depth );
 static vector3 _color( const ray& r, const Scene* scene, unsigned depth, unsigned max_depth );
 static vector3 _background( const ray& r );
@@ -57,8 +60,8 @@ int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsign
 {
     // Spin up a pool of render threads, one per block
     // Allocate width+1 and height+1 blocks to handle case where image is not an even multiple of block size
-    uint32_t      widthBlocks  = float( cols / blockSize ) + 1;
-    uint32_t      heightBlocks = float( rows / blockSize ) + 1;
+    uint32_t      widthBlocks  = uint32_t( float( cols / blockSize ) ) + 1;
+    uint32_t      heightBlocks = uint32_t( float( rows / blockSize ) ) + 1;
     uint32_t      numBlocks    = heightBlocks * widthBlocks;
     thread_pool_t tp           = threadPoolInit( numThreads );
 
@@ -92,6 +95,8 @@ int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsign
 
             threadPoolSubmitJob( tp, _renderThread, ctx );
 
+            //printf( "Submit block %d of %d\n", blockID, numBlocks );
+
             blockID++;
             xOffset += blockSize;
         }
@@ -115,11 +120,20 @@ static void _renderThread( uint32_t tid, const void* context )
 
     const RenderThreadContext* ctx = (const RenderThreadContext*)context;
 
-    for ( uint32_t y = ctx->yOffset; y < ctx->yOffset + ctx->blockSize; y++ ) {
-        for ( uint32_t x = ctx->xOffset; x < ctx->xOffset + ctx->blockSize; x++ ) {
+    //printf( "start %dx%d block %d of %d AA:%d MD:%d R:%d %d x %d x %d\n",
+    //    ctx->cols, ctx->rows,
+    //    ctx->blockID, ctx->totalBlocks, ctx->num_aa_samples, ctx->max_ray_depth, ctx->recursive,
+    //    ctx->xOffset, ctx->yOffset, ctx->blockSize
+    //    );
 
+    for ( uint32_t y = ctx->yOffset; y < ctx->yOffset + ctx->blockSize; y++ ) {
+        // Don't render out of bounds (in case where image is not an even multiple of block size)
+        if ( y >= ctx->rows )
+            break;
+
+        for ( uint32_t x = ctx->xOffset; x < ctx->xOffset + ctx->blockSize; x++ ) {
             // Don't render out of bounds (in case where image is not an even multiple of block size)
-            if (x >= ctx->cols || y >= ctx->rows)
+            if ( x >= ctx->cols )
                 break;
 
             // TEST
@@ -155,6 +169,8 @@ static void _renderThread( uint32_t tid, const void* context )
             ctx->frameBuffer[ y * ctx->cols + x ] = rgb;
         }
     }
+
+    //printf( "block %d of %d DONE\n", ctx->blockID, ctx->totalBlocks );
 
     // Notify main thread that we have completed the work
     if ( ctx->blockID == ctx->totalBlocks - 1 ) {

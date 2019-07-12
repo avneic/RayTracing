@@ -91,8 +91,9 @@ void check_cuda( cudaError_t result, char const* const function, const char* con
 #define XSTRINGIFY( s ) STRINGIFY( s )
 
 bool    delay( size_t ms );
-float   random();
-vector3 randomInUnitSphere();
-vector3 randomOnUnitDisk();
+
+__host__ __device__ float   random();
+__host__ __device__ vector3 randomInUnitSphere();
+__host__ __device__ vector3 randomOnUnitDisk();
 
 } // namespace pk

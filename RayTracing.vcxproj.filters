@@ -74,9 +74,6 @@
     <ClCompile Include="sphere.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="utils.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="material.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -92,15 +89,14 @@
     <ClCompile Include="raytracer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="test.cu">
+    <ClCompile Include="utils.cu">
       <Filter>Source Files</Filter>
-    </None>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="raytracer.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
+    <CudaCompile Include="test.cu" />
   </ItemGroup>
 </Project>

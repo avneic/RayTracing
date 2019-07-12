@@ -26,6 +26,7 @@ const unsigned int ROWS = 1000;
 
 // Anti-aliasing
 const unsigned int NUM_AA_SAMPLES = 50;
+//const unsigned int NUM_AA_SAMPLES = 1;
 
 // Max bounces per ray
 const unsigned int MAX_RAY_DEPTH = 50;
@@ -61,6 +62,7 @@ int main( int argc, char** argv )
     }
 
     bool cuda = true;
+    //bool cuda = false;
     if ( args.cmdOptionExists( "-c" ) ) {
         cuda = false;
     }
@@ -145,6 +147,7 @@ int main( int argc, char** argv )
 
     if ( cuda ) {
         CHECK_CUDA( cudaFree( frameBuffer ) );
+        CHECK_CUDA( cudaDeviceReset() );
     } else {
         delete[] frameBuffer;
     }
@@ -156,7 +159,7 @@ static Scene* _randomScene()
 {
     Scene* scene = new Scene();
 
-    scene->objects.push_back( new Sphere( vector3( 0, -1000.0f, 0 ), 1000, new Diffuse( vector3( 0.5f, 0.5f, 0.5f ) ) ) );
+    //scene->objects.push_back( new Sphere( vector3( 0, -1000.0f, 0 ), 1000, new Diffuse( vector3( 0.5f, 0.5f, 0.5f ) ) ) );
 
     //for ( int a = -11; a < 11; a++ ) {
     //    for ( int b = -11; b < 11; b++ ) {

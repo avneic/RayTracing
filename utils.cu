@@ -24,27 +24,33 @@ bool delay( size_t ms )
     return true;
 }
 
-float random()
+__host__ __device__ float random()
 {
+#ifdef __NVCC__
+    return 1.0f;
+#else
     return _random( _gen );
+#endif
 }
 
-vector3 randomInUnitSphere()
+__host__ __device__ vector3 randomInUnitSphere()
 {
     vector3 point;
+    unsigned int maxTries = 20;
     do {
         point = 2.0f * vector3( random(), random(), random() ) - vector3( 1, 1, 1 );
-    } while ( point.squared_length() >= 1.0f );
+    } while ( point.squared_length() >= 1.0f && maxTries--);
 
     return point;
 }
 
-vector3 randomOnUnitDisk()
+__host__ __device__ vector3 randomOnUnitDisk()
 {
     vector3 point;
+    unsigned int maxTries = 20;
     do {
         point = 2.0f * vector3( random(), random(), 0.0f ) - vector3( 1.0f, 1.0f, 0.0f );
-    } while ( point.dot( point ) >= 1.0f );
+    } while ( point.dot( point ) >= 1.0f && maxTries--);
 
     return point;
 }
@@ -54,9 +60,10 @@ void check_cuda( cudaError_t result, char const* const function, const char* con
 {
     if ( result ) {
         printf( "error 0x%x [%s:%d]: ", result, filename, line );
-        printf( "[%s]\n", function );
+        printf( "[%s] ", function );
+        printf( "%s : %s\n", cudaGetErrorName( result ), cudaGetErrorString( result ) );
         /*DEBUGCHK(0);*/
-        cudaDeviceReset();
+        //cudaDeviceReset();
     }
 }
 
