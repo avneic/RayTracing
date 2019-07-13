@@ -135,7 +135,7 @@ int renderSceneCUDA( const Scene& scene, const Camera& camera, unsigned rows, un
     CHECK_CUDA( cudaFree( pdScene ) );
     CHECK_CUDA( cudaFree( pdContext ) );
 
-    printf( "renderSceneCUDA: %f ms\n", t.ElapsedMilliseconds() );
+    printf( "renderSceneCUDA: %f s\n", t.ElapsedSeconds() );
 
     return 0;
 }

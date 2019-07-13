@@ -1,6 +1,7 @@
 #include "raytracer.h"
 
 #include "material.h"
+#include "perf_timer.h"
 #include "ray.h"
 #include "scene.h"
 #include "threadpool.h"
@@ -55,6 +56,8 @@ static void _renderThread( uint32_t tid, const void* context );
 
 int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsigned cols, uint32_t* frameBuffer, unsigned num_aa_samples, unsigned max_ray_depth, unsigned numThreads, unsigned blockSize, bool debug, bool recursive )
 {
+    PerfTimer t;
+
     // Spin up a pool of render threads, one per block
     // Allocate width+1 and height+1 blocks to handle case where image is not an even multiple of block size
     uint32_t      widthBlocks  = uint32_t( float( cols / blockSize ) ) + 1;
@@ -107,6 +110,8 @@ int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsign
 
     threadPoolDeinit( tp );
     delete[] contexts;
+
+    printf( "renderScene: %f s\n", t.ElapsedSeconds() );
 
     return 0;
 }
