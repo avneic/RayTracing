@@ -16,21 +16,20 @@ namespace pk
 {
 
 
-//#define NORMAL_SHADE
-#define DIFFUSE_SHADE
-
 typedef struct _sphere {
     vector3    center;
     float      radius;
-    uint32_t   material;
-    __device__ __host__ _sphere() :
-        center( 0, 0, 0 ), radius( 0.0f ), material( 0 ) {}
+    material_t material;
+
+    //__host__ __device__ _sphere() :
+    //    center( 0, 0, 0 ), radius( 0.0f ) {}
 } sphere_t;
 
+
 typedef struct _RenderThreadContext {
+    const Camera*   camera;
     const sphere_t* scene;
     uint32_t        sceneSize;
-    const Camera*   camera;
     curandState*    random;
     uint32_t*       framebuffer;
     uint32_t        rows;
@@ -52,11 +51,10 @@ typedef struct _RenderThreadContext {
 static __global__ void _createCamera( Camera* pdCamera );
 static __global__ void _renderInit( RenderThreadContext* pdContext );
 static __global__ void _render( RenderThreadContext* pdContext );
-static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned max_depth, curandState* random );
+static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned max_depth, curandState* rand );
 static __device__ vector3 _background( const ray& r );
-static __device__ bool    _sphereHit( const vector3& center, float radius, const ray& r, float min, float max, hit_info* p_hit );
+static __device__ bool    _sphereHit( const sphere_t& sphere, const ray& r, float min, float max, hit_info* p_hit );
 static __device__ bool    _sceneHit( const sphere_t* scene, uint32_t sceneSize, const ray& r, float min, float max, hit_info* p_hit );
-static __device__ vector3 _randomInUnitSphere( curandState* random );
 
 
 int renderSceneCUDA( const Scene& scene, const Camera& camera, unsigned rows, unsigned cols, uint32_t* framebuffer, unsigned num_aa_samples, unsigned max_ray_depth, unsigned numThreads, unsigned blockSize, bool debug, bool recursive )
@@ -64,13 +62,19 @@ int renderSceneCUDA( const Scene& scene, const Camera& camera, unsigned rows, un
     PerfTimer t;
 
     // Add +1 to block dims in case image is not a multiple of blockSize
-    blockSize = 16;
+    //blockSize = 16;
     dim3 blocks( cols / blockSize + 1, rows / blockSize + 1 );
     dim3 threads( blockSize, blockSize );
     printf( "renderSceneCUDA(): blocks %d,%d,%d threads %d,%d\n", blocks.x, blocks.y, blocks.z, threads.x, threads.y );
 
-    // Copy the Camera to device (gross hack)
-    // TODO: could be better to just construct on the device instead of copying
+    // Allocate random number generator for each ray
+    // This is HUGE but seems to be idiomatic in CUDA
+    size_t       numPixels     = rows * cols;
+    curandState* pdRandomState = nullptr;
+    CHECK_CUDA( cudaMalloc( &pdRandomState, sizeof( curandState ) * numPixels ) );
+    printf( "Allocated %zd device bytes for pdrandomState\n", sizeof( curandState ) * numPixels );
+
+    // Create a copy of the Camera on the device [ gross hack because Camera is created in main() since before I refactored for CUDA ]
     Camera* pdCamera = nullptr;
     CHECK_CUDA( cudaMallocManaged( &pdCamera, sizeof( Camera ) * 2 ) );
     memcpy( &pdCamera[ 1 ], &camera, sizeof( camera ) );
@@ -79,36 +83,35 @@ int renderSceneCUDA( const Scene& scene, const Camera& camera, unsigned rows, un
     CHECK_CUDA( cudaGetLastError() );
     CHECK_CUDA( cudaDeviceSynchronize() );
 
+    // Copy the Scene to device
+    // Flatten the Scene object to an array of sphere_t, which is what Scene should've been in the first place
     sphere_t* pdScene   = nullptr;
     size_t    sceneSize = sizeof( sphere_t ) * scene.objects.size();
     CHECK_CUDA( cudaMallocManaged( &pdScene, sceneSize ) );
     printf( "Allocated %zd device bytes / %zd objects\n", sceneSize, scene.objects.size() );
 
-    // Copy the Scene to device
-    // Flatten the Scene object to an array of sphere_t, which is what Scene should've been in the first place
     sphere_t* p = pdScene;
     for ( IVisible* obj : scene.objects ) {
         Sphere*   s1 = dynamic_cast<Sphere*>( obj );
         sphere_t* s2 = (sphere_t*)p;
         s2->center   = s1->center;
         s2->radius   = s1->radius;
+
+        // Deep copy material to the GPU
+        s2->material = *( s1->material );
+
         p++;
     }
     printf( "Copied %zd objects to device\n", scene.objects.size() );
 
-    // Allocate random sampler for each ray (ugh, but this is the CUDA way)
-    size_t       numPixels     = rows * cols;
-    curandState* pdRandomState = nullptr;
-    CHECK_CUDA( cudaMalloc( &pdRandomState, sizeof( curandState ) * numPixels ) );
-    printf( "Allocated %zd bytes for pdrandomState\n", sizeof( curandState ) * numPixels );
 
     // Allocate a render context to pass information to the GPU
     RenderThreadContext* pdContext = nullptr;
     CHECK_CUDA( cudaMallocManaged( &pdContext, sizeof( RenderThreadContext ) ) );
     printf( "Allocated %zd device bytes for context\n", sizeof( RenderThreadContext ) );
-    pdContext->scene          = pdScene;
-    pdContext->sceneSize      = scene.objects.size();
     pdContext->camera         = pdCamera;
+    pdContext->scene          = pdScene;
+    pdContext->sceneSize      = (uint32_t)scene.objects.size();
     pdContext->framebuffer    = framebuffer;
     pdContext->rows           = rows;
     pdContext->cols           = cols;
@@ -177,7 +180,7 @@ static __global__ void _render( RenderThreadContext* ctx )
     for ( uint32_t s = 0; s < ctx->num_aa_samples; s++ ) {
         float u = float( x + curand_uniform( &random ) ) / float( ctx->cols );
         float v = float( y + curand_uniform( &random ) ) / float( ctx->rows );
-        ray   r = ctx->camera->getRay( u, v );
+        ray   r = ctx->camera->getRay( u, v, &random );
 
         color += _color( r, ctx->scene, ctx->sceneSize, ctx->max_ray_depth, &random );
     }
@@ -191,7 +194,7 @@ static __global__ void _render( RenderThreadContext* ctx )
 
 
 // Non-recursive version
-static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned max_depth, curandState* random )
+static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned max_depth, curandState* rand )
 {
     hit_info hit;
     vector3  attenuation;
@@ -204,18 +207,15 @@ static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t 
             vector3 normal = ( r.point( hit.distance ) - vector3( 0, 0, -1 ) ).normalized();
             return 0.5f * vector3( normal.x + 1.0f, normal.y + 1.0f, normal.z + 1.0f );
 #elif defined( DIFFUSE_SHADE )
-            vector3 target = hit.point + hit.normal + _randomInUnitSphere( random );
+            vector3 target = hit.point + hit.normal + randomInUnitSphereCUDA( rand );
             scattered      = ray( hit.point, target - hit.point );
             color *= 0.5f;
 #else
-            //if (hit.material && hit.material->scatter(scattered, hit, &attenuation, &scattered)) {
-            //    color *= attenuation;
-            //}
-            //else {
-            //    break;
-            //}
-
-            color = vector3( 1, 0, 1 );
+            if ( hit.material && materialScatter( hit.material, scattered, hit, &attenuation, &scattered, rand ) ) {
+                color *= attenuation;
+            } else {
+                break;
+            }
 #endif
         } else {
             color *= _background( scattered );
@@ -236,14 +236,14 @@ static __device__ vector3 _background( const ray& r )
 }
 
 
-static __device__ bool _sphereHit( const vector3& center, float radius, const ray& r, float min, float max, hit_info* p_hit )
+static __device__ bool _sphereHit( const sphere_t& sphere, const ray& r, float min, float max, hit_info* p_hit )
 {
     assert( p_hit );
 
-    vector3 oc = r.origin - center;
+    vector3 oc = r.origin - sphere.center;
     float   a  = r.direction.dot( r.direction );
     float   b  = oc.dot( r.direction );
-    float   c  = oc.dot( oc ) - ( radius * radius );
+    float   c  = oc.dot( oc ) - ( sphere.radius * sphere.radius );
 
     float discriminant = b * b - a * c;
 
@@ -252,8 +252,8 @@ static __device__ bool _sphereHit( const vector3& center, float radius, const ra
         if ( t < max && t > min ) {
             p_hit->distance = t;
             p_hit->point    = r.point( t );
-            p_hit->normal   = ( p_hit->point - center ) / radius;
-            //p_hit->material = material;
+            p_hit->normal   = ( p_hit->point - sphere.center ) / sphere.radius;
+            p_hit->material = &sphere.material;
             return true;
         }
 
@@ -261,8 +261,8 @@ static __device__ bool _sphereHit( const vector3& center, float radius, const ra
         if ( t < max && t > min ) {
             p_hit->distance = t;
             p_hit->point    = r.point( t );
-            p_hit->normal   = ( p_hit->point - center ) / radius;
-            //p_hit->material = material;
+            p_hit->normal   = ( p_hit->point - sphere.center ) / sphere.radius;
+            p_hit->material = &sphere.material;
             return true;
         }
     }
@@ -277,10 +277,10 @@ static __device__ bool _sceneHit( const sphere_t* scene, uint32_t sceneSize, con
     hit_info hit;
 
     for ( int i = 0; i < sceneSize; i++ ) {
-        const sphere_t* sphere = &scene[ i ];
+        const sphere_t& sphere = scene[ i ];
 
         hit_info tmp;
-        if ( _sphereHit( sphere->center, sphere->radius, r, min, closestSoFar, &tmp ) ) {
+        if ( _sphereHit( sphere, r, min, closestSoFar, &tmp ) ) {
             rval         = true;
             closestSoFar = tmp.distance;
             hit          = tmp;
@@ -292,15 +292,15 @@ static __device__ bool _sceneHit( const sphere_t* scene, uint32_t sceneSize, con
 }
 
 
-static __device__ vector3 _randomInUnitSphere( curandState* random )
-{
-    vector3      point;
-    unsigned int maxTries = 20;
-    do {
-        point = 2.0f * vector3( curand_uniform( random ), curand_uniform( random ), curand_uniform( random ) ) - vector3( 1, 1, 1 );
-    } while ( point.squared_length() >= 1.0f && maxTries-- );
-
-    return point;
-}
+//static __device__ vector3 _randomInUnitSphere( curandState* random )
+//{
+//    vector3      point;
+//    unsigned int maxTries = 20;
+//    do {
+//        point = 2.0f * vector3( curand_uniform( random ), curand_uniform( random ), curand_uniform( random ) ) - vector3( 1, 1, 1 );
+//    } while ( point.squared_length() >= 1.0f && maxTries-- );
+//
+//    return point;
+//}
 
 } // namespace pk

@@ -7,21 +7,21 @@
 namespace pk
 {
 
-LINKAGE Sphere::Sphere() :
+__host__ __device__ Sphere::Sphere() :
     center( 0, 0, 0 ),
     radius( 1.0f ),
     material( nullptr )
 {
 }
 
-LINKAGE Sphere::Sphere( const vector3& pos, float r, IMaterial* material ) :
+__host__ __device__ Sphere::Sphere( const vector3& pos, float r, material_t* material ) :
     center( pos ),
     radius( r ),
     material( material )
 {
 }
 
-LINKAGE bool Sphere::hit( const ray& r, float min, float max, hit_info* p_hit ) const
+__host__ __device__ bool Sphere::hit( const ray& r, float min, float max, hit_info* p_hit ) const
 {
     assert( p_hit );
 
@@ -39,6 +39,7 @@ LINKAGE bool Sphere::hit( const ray& r, float min, float max, hit_info* p_hit ) 
             p_hit->point    = r.point( t );
             p_hit->normal   = ( p_hit->point - center ) / radius;
             p_hit->material = material;
+
             return true;
         }
 
@@ -48,6 +49,7 @@ LINKAGE bool Sphere::hit( const ray& r, float min, float max, hit_info* p_hit ) 
             p_hit->point    = r.point( t );
             p_hit->normal   = ( p_hit->point - center ) / radius;
             p_hit->material = material;
+
             return true;
         }
     }

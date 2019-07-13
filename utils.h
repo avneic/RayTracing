@@ -8,6 +8,7 @@
 
 #ifdef USE_CUDA
 #include <cuda_runtime.h>
+#include <curand_kernel.h>
 #endif
 
 namespace pk
@@ -90,10 +91,18 @@ void check_cuda( cudaError_t result, char const* const function, const char* con
 #define STRINGIFY( x ) #x
 #define XSTRINGIFY( s ) STRINGIFY( s )
 
-bool    delay( size_t ms );
+bool delay( size_t ms );
 
-__host__ __device__ float   random();
-__host__ __device__ vector3 randomInUnitSphere();
-__host__ __device__ vector3 randomOnUnitDisk();
+
+//__host__ float   random();
+//__host__ vector3 randomInUnitSphere();
+//__host__ vector3 randomOnUnitDisk();
+float   random();
+vector3 randomInUnitSphere();
+vector3 randomOnUnitDisk();
+
+__device__ float   randomCUDA( curandState* );
+__device__ vector3 randomInUnitSphereCUDA( curandState* );
+__device__ vector3 randomOnUnitDiskCUDA( curandState* );
 
 } // namespace pk

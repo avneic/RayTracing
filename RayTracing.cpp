@@ -25,8 +25,7 @@ const unsigned int COLS = 2000;
 const unsigned int ROWS = 1000;
 
 // Anti-aliasing
-const unsigned int NUM_AA_SAMPLES = 50;
-//const unsigned int NUM_AA_SAMPLES = 1;
+const unsigned int NUM_AA_SAMPLES = 15;
 
 // Max bounces per ray
 const unsigned int MAX_RAY_DEPTH = 50;
@@ -44,6 +43,12 @@ int main( int argc, char** argv )
     //
     ArgsParser args( argc, argv );
 
+    bool cuda = true;
+    //bool cuda = false;
+    if ( args.cmdOptionExists( "-c" ) ) {
+        cuda = false;
+    }
+
     int numThreads = std::thread::hardware_concurrency() - 1;
     if ( args.cmdOptionExists( "-t" ) ) {
         const std::string& arg = args.getCmdOption( "-t" );
@@ -55,16 +60,10 @@ int main( int argc, char** argv )
         filename = args.getCmdOption( "-f" );
     }
 
-    int blockSize = 64;
+    int blockSize = cuda ? 16 : 64;
     if ( args.cmdOptionExists( "-b" ) ) {
         const std::string& arg = args.getCmdOption( "-b" );
         blockSize              = std::stoi( arg );
-    }
-
-    bool cuda = true;
-    //bool cuda = false;
-    if ( args.cmdOptionExists( "-c" ) ) {
-        cuda = false;
     }
 
     bool debug = false;
@@ -82,11 +81,11 @@ int main( int argc, char** argv )
     //
     Scene* scene = _randomScene();
 
-    vector3  origin( 13, 2, 3 );
-    vector3  lookat( 0, 0, 0 );
-    vector3  up( 0, 1, 0 );
-    float vfov   = 20;
-    float aspect = float( COLS ) / float( ROWS );
+    vector3 origin( 13, 2, 3 );
+    vector3 lookat( 0, 0, 0 );
+    vector3 up( 0, 1, 0 );
+    float   vfov   = 20;
+    float   aspect = float( COLS ) / float( ROWS );
 
     //float focusDistance = ( origin - lookat ).length();
     float focusDistance = 10.0f;
@@ -159,31 +158,31 @@ static Scene* _randomScene()
 {
     Scene* scene = new Scene();
 
-    //scene->objects.push_back( new Sphere( vector3( 0, -1000.0f, 0 ), 1000, new Diffuse( vector3( 0.5f, 0.5f, 0.5f ) ) ) );
+    scene->objects.push_back( new Sphere( vector3( 0, -1000.0f, 0 ), 1000, new material_t( MATERIAL_DIFFUSE, vector3( 0.5f, 0.5f, 0.5f ) ) ) );
 
-    //for ( int a = -11; a < 11; a++ ) {
-    //    for ( int b = -11; b < 11; b++ ) {
-    //        float material = random();
-    //        vector3  center( a + 0.9f * random(), 0.2f, b + 0.9f * random() );
+    for ( int a = -11; a < 11; a++ ) {
+        for ( int b = -11; b < 11; b++ ) {
+            float   material = random();
+            vector3 center( a + 0.9f * random(), 0.2f, b + 0.9f * random() );
 
-    //        if ( ( center - vector3( 4.0f, 0.2f, 0.0f ) ).length() > 0.9f ) {
-    //            if ( material < 0.8f ) {
-    //                scene->objects.push_back( new Sphere( center, 0.2f, new Diffuse( vector3( random() * random(), random() * random(), random() * random() ) ) ) );
-    //            } else if ( material > 0.95f ) {
-    //                scene->objects.push_back( new Sphere( center, 0.2f, new Metal( vector3( 0.5f * ( 1 + random() ), 0.5f * ( 1 + random() ), 0.5f * ( 1 + random() ) ), 0.5f * random() ) ) );
-    //            } else {
-    //                scene->objects.push_back( new Sphere( center, 0.2f, new Glass( 1.5f ) ) );
-    //            }
-    //        }
-    //    }
-    //}
+            if ( ( center - vector3( 4.0f, 0.2f, 0.0f ) ).length() > 0.9f ) {
+                if ( material < 0.8f ) {
+                    scene->objects.push_back( new Sphere( center, 0.2f, new material_t( MATERIAL_DIFFUSE, vector3( random() * random(), random() * random(), random() * random() ) ) ) );
+                } else if ( material > 0.95f ) {
+                    scene->objects.push_back( new Sphere( center, 0.2f, new material_t( MATERIAL_METAL, vector3( 0.5f * ( 1 + random() ), 0.5f * ( 1 + random() ), 0.5f * ( 1 + random() ) ), 0.5f * random() ) ) );
+                } else {
+                    scene->objects.push_back( new Sphere( center, 0.2f, new material_t( MATERIAL_GLASS, vector3( 1, 1, 1 ), 1.0f, 1.5f ) ) );
+                }
+            }
+        }
+    }
 
-    //scene->objects.push_back( new Sphere( vector3( -4, 1, 0 ), 1.0f, new Diffuse( vector3( 0.4f, 0.2f, 0.1f ) ) ) );
-    //scene->objects.push_back( new Sphere( vector3( 0, 1, 0 ), 1.0f, new Glass( 1.5f ) ) );
-    //scene->objects.push_back( new Sphere( vector3( 4, 1, 0 ), 1.0f, new Metal( vector3( 0.7f, 0.6f, 0.5f ), 0.0f ) ) );
+    scene->objects.push_back( new Sphere( vector3( -4, 1, 0 ), 1.0f, new material_t( MATERIAL_DIFFUSE, vector3( 0.4f, 0.2f, 0.1f ) ) ) );
+    scene->objects.push_back( new Sphere( vector3( 0, 1, 0 ), 1.0f, new material_t( MATERIAL_GLASS, vector3( 0.4f, 0.2f, 0.1f ), 1.0f, 1.5f ) ) );
+    scene->objects.push_back( new Sphere( vector3( 4, 1, 0 ), 1.0f, new material_t( MATERIAL_METAL, vector3( 0.7f, 0.6f, 0.5f ), 0.0f ) ) );
 
-    scene->objects.push_back( new Sphere( vector3( 0, 0, -1 ), 0.5f, new Diffuse( vector3( 0.4f, 0.2f, 0.1f ) ) ) );
-    scene->objects.push_back( new Sphere( vector3( 0, -100.5f, -1 ), 100.0f, new Glass( 1.5f ) ) );
+    //scene->objects.push_back( new Sphere( vector3( 0, 0, -1 ), 0.5f, new material_t( MATERIAL_DIFFUSE, vector3( 0.4f, 0.2f, 0.1f ) ) ) );
+    //scene->objects.push_back( new Sphere( vector3( 0, -100.5f, -1 ), 100.0f, new material_t( MATERIAL_DIFFUSE, vector3( 0.5f, 0.5f, 0.5f ) ) ) );
 
     return scene;
 }

@@ -17,9 +17,6 @@
 namespace pk
 {
 
-#define NORMAL_SHADE
-//#define DIFFUSE_SHADE
-
 static vector3 _color_recursive( const ray& r, const Scene* scene, unsigned depth, unsigned max_depth );
 static vector3 _color( const ray& r, const Scene* scene, unsigned depth, unsigned max_depth );
 static vector3 _background( const ray& r );
@@ -148,7 +145,7 @@ static void _renderThread( uint32_t tid, const void* context )
             for ( uint32_t s = 0; s < ctx->num_aa_samples; s++ ) {
                 float u = float( x + random() ) / float( ctx->cols );
                 float v = float( y + random() ) / float( ctx->rows );
-                ray   r = ctx->camera->getRay( u, v );
+                ray   r = ctx->camera->getRay( u, v, nullptr );
 
                 if ( ctx->recursive ) {
                     color += _color_recursive( r, ctx->scene, 0, ctx->max_ray_depth );
@@ -193,14 +190,14 @@ static vector3 _color_recursive( const ray& r, const Scene* scene, unsigned dept
 #elif defined( DIFFUSE_SHADE )
         if ( depth < max_depth ) {
             vector3 target = hit.point + hit.normal + randomInUnitSphere();
-            return 0.5f * _color_recursive( ray( hit.point, target - hit.point ), scene, depth + 1 );
+            return 0.5f * _color_recursive( ray( hit.point, target - hit.point ), scene, depth + 1, max_depth );
         } else {
             return vector3( 0, 0, 0 );
         }
 #else
         ray     scattered;
         vector3 attenuation;
-        if ( depth < max_depth && hit.material && hit.material->scatter( r, hit, &attenuation, &scattered ) ) {
+        if ( depth < max_depth && hit.material && materialScatter( hit.material, r, hit, &attenuation, &scattered, nullptr ) ) {
             return attenuation * _color( scattered, scene, depth + 1, max_depth );
         } else {
             return vector3( 0, 0, 0 );
@@ -225,14 +222,11 @@ static vector3 _color( const ray& r, const Scene* scene, unsigned depth, unsigne
             vector3 normal = ( r.point( hit.distance ) - vector3( 0, 0, -1 ) ).normalized();
             return 0.5f * vector3( normal.x + 1, normal.y + 1, normal.z + 1 );
 #elif defined( DIFFUSE_SHADE )
-            if ( depth < max_depth ) {
-                vector3 target = hit.point + hit.normal + randomInUnitSphere();
-                return 0.5f * _color( ray( hit.point, target - hit.point ), scene, depth + 1 );
-            } else {
-                return vector3( 0, 0, 0 );
-            }
+            vector3 target = hit.point + hit.normal + randomInUnitSphere();
+            scattered      = ray( hit.point, target - hit.point );
+            color *= 0.5f;
 #else
-            if ( hit.material && hit.material->scatter( scattered, hit, &attenuation, &scattered ) ) {
+            if ( hit.material && materialScatter( hit.material, scattered, hit, &attenuation, &scattered, nullptr ) ) {
                 color *= attenuation;
             } else {
                 break;
@@ -246,6 +240,7 @@ static vector3 _color( const ray& r, const Scene* scene, unsigned depth, unsigne
 
     return color;
 }
+
 
 static vector3 _background( const ray& r )
 {

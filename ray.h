@@ -4,22 +4,16 @@
 namespace pk
 {
 
-//#ifdef __CUDA__
-#define LINKAGE __device__ 
-//#else
-//#define LINKAGE
-//#endif
-
 class ray {
 public:
-    LINKAGE ray() {};
-    LINKAGE ray( const ray& rhs ) :
+    __host__ __device__  ray() {};
+    __host__ __device__  ray( const ray& rhs ) :
         origin(rhs.origin),
         direction(rhs.direction)
     {}
-    LINKAGE ray( const vector3& origin, const vector3& direction ) { this->origin = origin, this->direction = direction; }
+    __host__ __device__  ray( const vector3& origin, const vector3& direction ) { this->origin = origin, this->direction = direction; }
 
-    LINKAGE vector3 point( float distance ) const { return origin + (distance * direction); }
+    __host__ __device__  vector3 point( float distance ) const { return origin + (distance * direction); }
 
     vector3 origin;
     vector3 direction;

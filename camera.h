@@ -14,10 +14,10 @@ namespace pk
 
 class Camera {
 public:
-    LINKAGE Camera() :
+    __host__ __device__ Camera() :
         Camera( 50.0f, 2.0f ) {}
 
-    LINKAGE Camera( float vfov, float aspect, float aperture = 1.0f, float focusDistance = FLT_MAX, const vector3& pos = vector3( 0, 0, 0 ), const vector3& up = vector3( 0, 1, 0 ), const vector3& lookat = vector3( 0, 0, -1 ) )
+    __host__ __device__ Camera( float vfov, float aspect, float aperture = 1.0f, float focusDistance = FLT_MAX, const vector3& pos = vector3( 0, 0, 0 ), const vector3& up = vector3( 0, 1, 0 ), const vector3& lookat = vector3( 0, 0, -1 ) )
     {
         this->vfov          = vfov;
         this->aspect        = aspect;
@@ -40,14 +40,11 @@ public:
         horizontal = 2 * halfWidth * focusDistance * u;
         vertical   = 2 * halfHeight * focusDistance * v;
 
-        printf( "Camera: fov %4.1f aspect %4.1f aperture %4.1f (%f, %f, %f) -> (%f, %f, %f) (%f : %f) h(%f, %f, %f) v(%f, %f, %f) l(%f, %f, %f)\n",
-            vfov, aspect, aperture, origin.x, origin.y, origin.z, lookat.x, lookat.y, lookat.z, focusDistance, ( origin - lookat ).length(),
-            horizontal.x, horizontal.y, horizontal.z,
-            vertical.x, vertical.y, vertical.z,
-            leftCorner.x, leftCorner.y, leftCorner.z );
+        printf( "Camera(): fov %4.1f aspect %4.1f aperture %4.1f (%f, %f, %f) -> (%f, %f, %f) (%f : %f)\n",
+            vfov, aspect, aperture, origin.x, origin.y, origin.z, lookat.x, lookat.y, lookat.z, focusDistance, ( origin - lookat ).length() );
     }
 
-    LINKAGE Camera( const Camera& rhs ) :
+    __host__ __device__ Camera( const Camera& rhs ) :
         origin( rhs.origin ),
         leftCorner( rhs.leftCorner ),
         horizontal( rhs.horizontal ),
@@ -63,18 +60,16 @@ public:
         lookat( rhs.lookat ),
         focusDistance( rhs.focusDistance )
     {
-        printf( "Camera( 0x%p ): fov %4.1f aspect %4.1f aperture %4.1f (%f, %f, %f) -> (%f, %f, %f) (%f : %f) h(%f, %f, %f) v(%f, %f, %f) l(%f, %f, %f)\n",
-            this,
-            vfov, aspect, aperture, origin.x, origin.y, origin.z, lookat.x, lookat.y, lookat.z, focusDistance, ( origin - lookat ).length(),
-            horizontal.x, horizontal.y, horizontal.z,
-            vertical.x, vertical.y, vertical.z,
-            leftCorner.x, leftCorner.y, leftCorner.z );
+        printf( "Camera(): fov %4.1f aspect %4.1f aperture %4.1f (%f, %f, %f) -> (%f, %f, %f) (%f : %f)\n",
+            vfov, aspect, aperture, origin.x, origin.y, origin.z, lookat.x, lookat.y, lookat.z, focusDistance, ( origin - lookat ).length() );
     }
 
-    LINKAGE ray getRay( float s, float t ) const
+    __host__ __device__ ray getRay( float s, float t, void* random ) const
     {
-#ifdef __NVCC__
-        vector3 offset( 0, 0, 0 );
+#ifdef __CUDA_ARCH__
+        vector3 rand   = lensRadius * randomOnUnitDiskCUDA( (curandState*)random );
+        vector3 offset = u * rand.x + v * rand.y;
+        //vector3 offset( 0, 0, 0 );
         return ray( origin + offset, leftCorner + ( s * horizontal ) + ( ( 1.0f - t ) * vertical ) - origin - offset );
 #else
         vector3 rand   = lensRadius * randomOnUnitDisk();

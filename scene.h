@@ -1,5 +1,6 @@
 #pragma once
 
+//#include "material.h"
 #include "ray.h"
 #include "vector_cuda.h"
 
@@ -9,13 +10,13 @@
 namespace pk
 {
 
-class IMaterial;
+struct _material;
 
 typedef struct _hit {
     float      distance;
     vector3    point;
     vector3    normal;
-    IMaterial* material;
+    const struct _material* material;
 
     __host__ __device__ _hit() :
         distance( 0.0f ),

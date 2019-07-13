@@ -24,39 +24,64 @@ bool delay( size_t ms )
     return true;
 }
 
-__host__ __device__ float random()
+
+__host__ float random()
 {
-#ifdef __NVCC__
-    return 1.0f;
-#else
     return _random( _gen );
-#endif
 }
 
-__host__ __device__ vector3 randomInUnitSphere()
+__host__ vector3 randomInUnitSphere()
 {
-    vector3 point;
+    vector3      point;
     unsigned int maxTries = 20;
     do {
         point = 2.0f * vector3( random(), random(), random() ) - vector3( 1, 1, 1 );
-    } while ( point.squared_length() >= 1.0f && maxTries--);
+    } while ( point.squared_length() >= 1.0f && maxTries-- );
 
     return point;
 }
 
-__host__ __device__ vector3 randomOnUnitDisk()
+__host__ vector3 randomOnUnitDisk()
 {
-    vector3 point;
+    vector3      point;
     unsigned int maxTries = 20;
     do {
         point = 2.0f * vector3( random(), random(), 0.0f ) - vector3( 1.0f, 1.0f, 0.0f );
-    } while ( point.dot( point ) >= 1.0f && maxTries--);
+    } while ( point.dot( point ) >= 1.0f && maxTries-- );
 
     return point;
 }
 
 
-void check_cuda( cudaError_t result, char const* const function, const char* const filename, int const line )
+__device__ float randomCUDA( curandState* rand )
+{
+    return curand_uniform( rand );
+}
+
+__device__ vector3 randomInUnitSphereCUDA( curandState* rand )
+{
+    vector3      point;
+    unsigned int maxTries = 20;
+    do {
+        point = 2.0f * vector3( randomCUDA( rand ), randomCUDA( rand ), randomCUDA( rand ) ) - vector3( 1, 1, 1 );
+    } while ( point.squared_length() >= 1.0f && maxTries-- );
+
+    return point;
+}
+
+__device__ vector3 randomOnUnitDiskCUDA( curandState* rand )
+{
+    vector3      point;
+    unsigned int maxTries = 20;
+    do {
+        point = 2.0f * vector3( randomCUDA( rand ), randomCUDA( rand ), 0.0f ) - vector3( 1.0f, 1.0f, 0.0f );
+    } while ( point.dot( point ) >= 1.0f && maxTries-- );
+
+    return point;
+}
+
+
+void check_cuda( cudaError_t result, char const *const function, const char *const filename, int const line )
 {
     if ( result ) {
         printf( "error 0x%x [%s:%d]: ", result, filename, line );
