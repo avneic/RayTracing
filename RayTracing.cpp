@@ -25,10 +25,10 @@ const unsigned int COLS = 2000;
 const unsigned int ROWS = 1000;
 
 // Anti-aliasing
-const unsigned int NUM_AA_SAMPLES = 15;
+const unsigned int NUM_AA_SAMPLES = 50;
 
 // Max bounces per ray
-const unsigned int MAX_RAY_DEPTH = 50;
+const unsigned int MAX_RAY_DEPTH = 5;
 
 static Scene* _randomScene();
 
@@ -49,15 +49,10 @@ int main( int argc, char** argv )
         cuda = false;
     }
 
-    int numThreads = std::thread::hardware_concurrency() - 1;
-    if ( args.cmdOptionExists( "-t" ) ) {
-        const std::string& arg = args.getCmdOption( "-t" );
-        numThreads             = std::stoi( arg );
-    }
-
-    std::string filename = "foo.ppm";
-    if ( args.cmdOptionExists( "-f" ) ) {
-        filename = args.getCmdOption( "-f" );
+    int aaSamples = NUM_AA_SAMPLES;
+    if ( args.cmdOptionExists( "-a" ) ) {
+        const std::string& arg = args.getCmdOption( "-a" );
+        aaSamples              = std::stoi( arg );
     }
 
     int blockSize = cuda ? 16 : 64;
@@ -71,10 +66,28 @@ int main( int argc, char** argv )
         debug = true;
     }
 
+    std::string filename = "foo.ppm";
+    if ( args.cmdOptionExists( "-f" ) ) {
+        filename = args.getCmdOption( "-f" );
+    }
+
+    int maxBounce = MAX_RAY_DEPTH;
+    if ( args.cmdOptionExists( "-m" ) ) {
+        const std::string& arg = args.getCmdOption( "-m" );
+        maxBounce              = std::stoi( arg );
+    }
+
     bool recursive = false;
     if ( args.cmdOptionExists( "-r" ) ) {
         recursive = true;
     }
+
+    int numThreads = std::thread::hardware_concurrency() - 1;
+    if ( args.cmdOptionExists( "-t" ) ) {
+        const std::string& arg = args.getCmdOption( "-t" );
+        numThreads             = std::stoi( arg );
+    }
+
 
     //
     // Define the scene and camera
@@ -116,9 +129,9 @@ int main( int argc, char** argv )
     }
 
     if ( cuda ) {
-        renderSceneCUDA( *scene, camera, ROWS, COLS, frameBuffer, NUM_AA_SAMPLES, MAX_RAY_DEPTH, numThreads, blockSize, debug, recursive );
+        renderSceneCUDA( *scene, camera, ROWS, COLS, frameBuffer, aaSamples, maxBounce, numThreads, blockSize, debug, recursive );
     } else {
-        renderScene( *scene, camera, ROWS, COLS, frameBuffer, NUM_AA_SAMPLES, MAX_RAY_DEPTH, numThreads, blockSize, debug, recursive );
+        renderScene( *scene, camera, ROWS, COLS, frameBuffer, aaSamples, maxBounce, numThreads, blockSize, debug, recursive );
     }
 
     //

@@ -86,17 +86,19 @@
     <ClCompile Include="raytracer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="utils.cu">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="material.cu">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="raytracer.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
-    <CudaCompile Include="test.cu" />
+    <CudaCompile Include="material.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="test.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="utils.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
   </ItemGroup>
 </Project>
