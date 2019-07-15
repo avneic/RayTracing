@@ -20,9 +20,6 @@ typedef struct _sphere {
     vector3    center;
     float      radius;
     material_t material;
-
-    //__host__ __device__ _sphere() :
-    //    center( 0, 0, 0 ), radius( 0.0f ) {}
 } sphere_t;
 
 
@@ -30,7 +27,6 @@ typedef struct _RenderThreadContext {
     const Camera*   camera;
     const sphere_t* scene;
     uint32_t        sceneSize;
-    curandState*    random;
     uint32_t*       framebuffer;
     uint32_t        rows;
     uint32_t        cols;
@@ -49,30 +45,21 @@ typedef struct _RenderThreadContext {
 
 
 static __global__ void _createCamera( Camera* pdCamera );
-static __global__ void _renderInit( RenderThreadContext* pdContext );
 static __global__ void _render( RenderThreadContext* pdContext );
-static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned max_depth, curandState* rand );
 static __device__ vector3 _background( const ray& r );
 static __device__ bool    _sphereHit( const sphere_t& sphere, const ray& r, float min, float max, hit_info* p_hit );
 static __device__ bool    _sceneHit( const sphere_t* scene, uint32_t sceneSize, const ray& r, float min, float max, hit_info* p_hit );
 
+static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned max_depth );
 
 int renderSceneCUDA( const Scene& scene, const Camera& camera, unsigned rows, unsigned cols, uint32_t* framebuffer, unsigned num_aa_samples, unsigned max_ray_depth, unsigned numThreads, unsigned blockSize, bool debug, bool recursive )
 {
     PerfTimer t;
 
     // Add +1 to block dims in case image is not a multiple of blockSize
-    //blockSize = 16;
     dim3 blocks( cols / blockSize + 1, rows / blockSize + 1 );
     dim3 threads( blockSize, blockSize );
     printf( "renderSceneCUDA(): blocks %d,%d,%d threads %d,%d\n", blocks.x, blocks.y, blocks.z, threads.x, threads.y );
-
-    // Allocate random number generator for each ray
-    // This is HUGE but seems to be idiomatic in CUDA
-    size_t       numPixels     = rows * cols;
-    curandState* pdRandomState = nullptr;
-    CHECK_CUDA( cudaMalloc( &pdRandomState, sizeof( curandState ) * numPixels ) );
-    printf( "Allocated %zd device bytes for pdrandomState\n", sizeof( curandState ) * numPixels );
 
     // Create a copy of the Camera on the device [ gross hack because Camera is created in main() since before I refactored for CUDA ]
     Camera* pdCamera = nullptr;
@@ -118,20 +105,13 @@ int renderSceneCUDA( const Scene& scene, const Camera& camera, unsigned rows, un
     pdContext->num_aa_samples = num_aa_samples;
     pdContext->max_ray_depth  = max_ray_depth;
     pdContext->debug          = debug;
-    pdContext->random         = pdRandomState;
 
     // Render the scene
-    _renderInit<<<blocks, threads>>>( pdContext );
-    CHECK_CUDA( cudaGetLastError() );
-    CHECK_CUDA( cudaDeviceSynchronize() );
-
-    //_render<<<blocks, threads>>>( pdCamera, framebuffer, cols, rows, pdScene, (uint32_t)scene.objects.size(), pdRandomState );
     _render<<<blocks, threads>>>( pdContext );
     CHECK_CUDA( cudaGetLastError() );
     CHECK_CUDA( cudaDeviceSynchronize() );
 
     CHECK_CUDA( cudaFree( pdCamera ) );
-    CHECK_CUDA( cudaFree( pdRandomState ) );
     CHECK_CUDA( cudaFree( pdScene ) );
     CHECK_CUDA( cudaFree( pdContext ) );
 
@@ -149,41 +129,24 @@ static __global__ void _createCamera( Camera* pdCamera )
 }
 
 
-static __global__ void _renderInit( RenderThreadContext* ctx )
-{
-    unsigned x = threadIdx.x + blockIdx.x * blockDim.x;
-    unsigned y = threadIdx.y + blockIdx.y * blockDim.y;
-
-    if ( x >= ctx->cols || y >= ctx->rows )
-        return;
-
-    unsigned pixel_index = ( y * ctx->cols ) + x;
-
-    // NOTE: tutorial says to pass a unique sequence number but this crashes curand_init() hard (and is insanely slow).
-    // See: https://devtalk.nvidia.com/default/topic/1028057/curand_init-sequence-number-problem/
-    //curand_init( 1984, pixel_index, 0, &pdRandomState[ pixel_index ] );
-    curand_init( 1984 + pixel_index, 0, 0, &ctx->random[ pixel_index ] );
-}
-
-static __global__ void _render( RenderThreadContext* ctx )
+static __global__ void _render(RenderThreadContext* ctx)
 {
     unsigned x = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned y = blockIdx.y * blockDim.y + threadIdx.y;
 
-    if ( x >= ctx->cols || y >= ctx->rows )
+    if (x >= ctx->cols || y >= ctx->rows)
         return;
 
-    unsigned    p      = ( y * ctx->cols ) + ( x );
-    curandState random = ctx->random[ p ];
-    vector3     color( 0, 0, 0 );
+    unsigned    p = (y * ctx->cols) + (x);
+    vector3     color(0, 0, 0);
 
     for ( uint32_t s = 0; s < ctx->num_aa_samples; s++ ) {
-        float u = float( x + curand_uniform( &random ) ) / float( ctx->cols );
-        float v = float( y + curand_uniform( &random ) ) / float( ctx->rows );
-        ray   r = ctx->camera->getRay( u, v, &random );
-
-        color += _color( r, ctx->scene, ctx->sceneSize, ctx->max_ray_depth, &random );
+        float u = float( x + random() ) / float( ctx->cols );
+        float v = float( y + random() ) / float( ctx->rows );
+        ray   r = ctx->camera->getRay( u, v );
+        color += _color( r, ctx->scene, ctx->sceneSize, ctx->max_ray_depth );
     }
+
     color /= float( ctx->num_aa_samples );
 
     // Apply 2.0 Gamma correction
@@ -194,7 +157,7 @@ static __global__ void _render( RenderThreadContext* ctx )
 
 
 // Non-recursive version
-static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned max_depth, curandState* rand )
+static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned max_depth )
 {
     hit_info hit;
     vector3  attenuation;
@@ -211,7 +174,7 @@ static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t 
             scattered      = ray( hit.point, target - hit.point );
             color *= 0.5f;
 #else
-            if ( hit.material && materialScatter( hit.material, scattered, hit, &attenuation, &scattered, rand ) ) {
+            if ( hit.material && materialScatter( hit.material, scattered, hit, &attenuation, &scattered ) ) {
                 color *= attenuation;
             } else {
                 break;
@@ -290,17 +253,5 @@ static __device__ bool _sceneHit( const sphere_t* scene, uint32_t sceneSize, con
     *p_hit = hit;
     return rval;
 }
-
-
-//static __device__ vector3 _randomInUnitSphere( curandState* random )
-//{
-//    vector3      point;
-//    unsigned int maxTries = 20;
-//    do {
-//        point = 2.0f * vector3( curand_uniform( random ), curand_uniform( random ), curand_uniform( random ) ) - vector3( 1, 1, 1 );
-//    } while ( point.squared_length() >= 1.0f && maxTries-- );
-//
-//    return point;
-//}
 
 } // namespace pk

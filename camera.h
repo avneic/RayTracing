@@ -64,12 +64,11 @@ public:
             vfov, aspect, aperture, origin.x, origin.y, origin.z, lookat.x, lookat.y, lookat.z, focusDistance, ( origin - lookat ).length() );
     }
 
-    __host__ __device__ ray getRay( float s, float t, void* random ) const
+    __host__ __device__ ray getRay( float s, float t ) const
     {
 #ifdef __CUDA_ARCH__
-        vector3 rand   = lensRadius * randomOnUnitDiskCUDA( (curandState*)random );
+        vector3 rand   = lensRadius * randomOnUnitDisk();
         vector3 offset = u * rand.x + v * rand.y;
-        //vector3 offset( 0, 0, 0 );
         return ray( origin + offset, leftCorner + ( s * horizontal ) + ( ( 1.0f - t ) * vertical ) - origin - offset );
 #else
         vector3 rand   = lensRadius * randomOnUnitDisk();

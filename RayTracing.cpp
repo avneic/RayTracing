@@ -25,7 +25,8 @@ const unsigned int COLS = 2000;
 const unsigned int ROWS = 1000;
 
 // Anti-aliasing
-const unsigned int NUM_AA_SAMPLES = 50;
+// NOTE: if a CUDA program takes > 2 seconds to execute, Windows may kill it.
+const unsigned int NUM_AA_SAMPLES = 25;
 
 // Max bounces per ray
 const unsigned int MAX_RAY_DEPTH = 5;

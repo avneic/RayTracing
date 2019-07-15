@@ -34,7 +34,6 @@ typedef struct _material {
 
 } material_t;
 
-
-__host__ __device__ bool materialScatter( const material_t* m, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered, void* rand );
+__host__ __device__ bool materialScatter( const material_t* m, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered );
 
 } // namespace pk

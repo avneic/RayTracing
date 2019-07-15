@@ -10,26 +10,25 @@ __host__ __device__ static vector3 _reflect( const vector3& v, const vector3& no
 __host__ __device__ static bool    _refract( const vector3& v, const vector3& normal, float ni_over_nt, vector3* refracted );
 __host__ __device__ static float   _schlick( float cosine, float refractionIndex );
 
-__host__ __device__ static bool _diffuseScatter( const material_t* d, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered, void* rand );
-__host__ __device__ static bool _metalScatter( const material_t* m, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered, void* rand );
-__host__ __device__ static bool _glassScatter( const material_t* g, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered, void* rand );
+__host__ __device__ static bool _diffuseScatter( const material_t* d, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered );
+__host__ __device__ static bool _metalScatter( const material_t* m, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered );
+__host__ __device__ static bool _glassScatter( const material_t* g, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered );
 
-
-__host__ __device__ bool materialScatter( const material_t* m, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered, void* rand )
+__host__ __device__ bool materialScatter( const material_t* m, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered )
 {
     bool rval = false;
 
     switch ( m->type ) {
         case MATERIAL_DIFFUSE:
-            rval = _diffuseScatter( m, r, hit, attenuation, scattered, rand );
+            rval = _diffuseScatter( m, r, hit, attenuation, scattered );
             break;
 
         case MATERIAL_METAL:
-            rval = _metalScatter( m, r, hit, attenuation, scattered, rand );
+            rval = _metalScatter( m, r, hit, attenuation, scattered );
             break;
 
         case MATERIAL_GLASS:
-            rval = _glassScatter( m, r, hit, attenuation, scattered, rand );
+            rval = _glassScatter( m, r, hit, attenuation, scattered );
             break;
 
         default:
@@ -45,41 +44,29 @@ __host__ __device__ bool materialScatter( const material_t* m, const ray& r, con
 //
 
 #pragma nv_exec_check_disable
-__host__ __device__ static bool _diffuseScatter( const material_t* d, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered, void* rand )
+__host__ __device__ static bool _diffuseScatter( const material_t* d, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered )
 {
-#ifdef __CUDA_ARCH__ 
-    vector3 target = hit.point + hit.normal + randomInUnitSphereCUDA( (curandState*)rand );
-    *scattered     = ray( hit.point, target - hit.point );
-    *attenuation   = d->albedo;
-#else
     vector3 target    = hit.point + hit.normal + randomInUnitSphere();
     *scattered        = ray( hit.point, target - hit.point );
     *attenuation      = d->albedo;
-#endif
 
     return true;
 }
 
 
 #pragma nv_exec_check_disable
-__host__ __device__ static bool _metalScatter( const material_t* m, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered, void* rand )
+__host__ __device__ static bool _metalScatter( const material_t* m, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered )
 {
-#ifdef __CUDA_ARCH__ 
-    vector3 reflected = _reflect( r.direction.normalized(), hit.normal );
-    *scattered        = ray( hit.point, reflected + ( m->blur * randomInUnitSphereCUDA( (curandState*)rand ) ) );
-    *attenuation      = m->albedo;
-#else
     vector3 reflected = _reflect( r.direction.normalized(), hit.normal );
     *scattered        = ray( hit.point, reflected + ( m->blur * randomInUnitSphere() ) );
     *attenuation      = m->albedo;
-#endif
 
     return ( scattered->direction.dot( hit.normal ) > 0 );
 }
 
 
 #pragma nv_exec_check_disable
-__host__ __device__ static bool _glassScatter( const material_t* g, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered, void* rand )
+__host__ __device__ static bool _glassScatter( const material_t* g, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered )
 {
     vector3 outwardNormal;
     vector3 reflected = _reflect( r.direction, hit.normal );
@@ -106,11 +93,7 @@ __host__ __device__ static bool _glassScatter( const material_t* g, const ray& r
         probability = 1.0f;
     }
 
-#ifdef __CUDA_ARCH__ 
-    float p = randomCUDA( (curandState*)rand );
-#else
     float p = random();
-#endif
 
     if ( p < probability ) {
         *scattered = ray( hit.point, reflected );

@@ -3,13 +3,9 @@
 #include "vector_cuda.h"
 
 #include <csignal>
-
-#define USE_CUDA
-
-#ifdef USE_CUDA
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
-#endif
+
 
 namespace pk
 {
@@ -62,7 +58,6 @@ namespace pk
         }                                                       \
     }
 
-#ifdef USE_CUDA
 #ifndef SHIP_BUILD
 void check_cuda( cudaError_t result, char const* const function, const char* const filename, int const line );
 #define CHECK_CUDA( x ) check_cuda( ( x ), #x, __FILE__, __LINE__ )
@@ -70,14 +65,6 @@ void check_cuda( cudaError_t result, char const* const function, const char* con
 #define CHECK_CUDA( x ) ( x )
 #endif
 
-#endif
-
-
-//#ifdef __CUDACC__
-//#else
-//#undef(FLT_MAX)
-//#define FLT_MAX ((std::numeric_limits<float>::max)())
-//#endif
 
 #define M_PI 3.14159265358979323846f
 #define RADIANS( x ) ( (x)*M_PI / 180.0f )
@@ -94,15 +81,8 @@ void check_cuda( cudaError_t result, char const* const function, const char* con
 bool delay( size_t ms );
 
 
-//__host__ float   random();
-//__host__ vector3 randomInUnitSphere();
-//__host__ vector3 randomOnUnitDisk();
-float   random();
-vector3 randomInUnitSphere();
-vector3 randomOnUnitDisk();
-
-__device__ float   randomCUDA( curandState* );
-__device__ vector3 randomInUnitSphereCUDA( curandState* );
-__device__ vector3 randomOnUnitDiskCUDA( curandState* );
+__host__ __device__ float random();
+__host__ __device__ vector3 randomInUnitSphere();
+__host__ __device__ vector3 randomOnUnitDisk();
 
 } // namespace pk
