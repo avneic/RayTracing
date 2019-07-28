@@ -42,9 +42,6 @@
     <ClInclude Include="result.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="threadpool.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="perf_timer.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -63,6 +60,15 @@
     <ClInclude Include="vector_cuda.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="object_queue.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="thread_pool.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="spin_lock.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -77,13 +83,16 @@
     <ClCompile Include="msgqueue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="threadpool.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="perf_timer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="raytracer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="object_queue.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="thread_pool.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

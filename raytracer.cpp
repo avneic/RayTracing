@@ -4,7 +4,7 @@
 #include "perf_timer.h"
 #include "ray.h"
 #include "scene.h"
-#include "threadpool.h"
+#include "thread_pool.h"
 #include "vector_cuda.h"
 
 #include <atomic>
@@ -51,7 +51,7 @@ typedef struct _RenderThreadContext {
     {
     }
 } RenderThreadContext;
-static void _renderThread( uint32_t tid, const void* context );
+static bool _renderThread( void* context, uint32_t tid );
 
 
 int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsigned cols, uint32_t* frameBuffer, unsigned num_aa_samples, unsigned max_ray_depth, unsigned numThreads, unsigned blockSize, bool debug, bool recursive )
@@ -65,8 +65,8 @@ int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsign
     uint32_t      numBlocks    = heightBlocks * widthBlocks;
     thread_pool_t tp           = threadPoolInit( numThreads );
 
-    printf( "Render %d x %d: blockSize %d x %d, %d blocks debug %d threads [%d:%d]\n",
-        cols, rows, blockSize, blockSize, numBlocks, debug, tp, numThreads );
+    printf( "Render %d x %d: blockSize %d x %d, %d blocks threads [%d:%d]\n",
+        cols, rows, blockSize, blockSize, numBlocks, tp, numThreads );
 
     RenderThreadContext* contexts = new RenderThreadContext[ numBlocks ];
 
@@ -93,6 +93,8 @@ int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsign
             ctx->debug               = debug;
             ctx->recursive           = recursive;
 
+            // job_t threadPoolSubmitJob( thread_pool_t pool, jobFunction function, void* context, thread_pool_blocking_t blocking = THREAD_POOL_SUBMIT_BLOCKING );
+
             threadPoolSubmitJob( tp, _renderThread, ctx );
 
             //printf( "Submit block %d of %d\n", blockID, numBlocks );
@@ -116,7 +118,7 @@ int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsign
     return 0;
 }
 
-static void _renderThread( uint32_t tid, const void* context )
+static bool _renderThread( void* context, uint32_t tid )
 {
     UNUSED( tid );
 
@@ -180,7 +182,7 @@ static void _renderThread( uint32_t tid, const void* context )
         blockCount->exchange( ctx->totalBlocks );
     }
 
-    return;
+    return true;
 }
 
 // Recursively trace each ray through objects/materials

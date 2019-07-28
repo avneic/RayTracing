@@ -1,6 +1,6 @@
 #include "perf_timer.h"
 #include "test.h"
-#include "threadpool.h"
+#include "thread_pool.h"
 #include "utils.h"
 
 #include <atomic>
@@ -66,7 +66,7 @@ typedef struct {
 } thread_context_t;
 
 
-static void _cpu_add_thread( uint32_t tid, const void* context )
+static bool _cpu_add_thread( void* context, uint32_t tid )
 {
     thread_context_t* ctx = (thread_context_t*)context;
 
@@ -75,6 +75,8 @@ static void _cpu_add_thread( uint32_t tid, const void* context )
     if ( ctx->start + ctx->num >= ctx->total ) {
         *( ctx->complete ) = true;
     }
+
+    return true;
 }
 
 
@@ -107,9 +109,7 @@ void testCPUThreaded()
         ctx.y                 = &y[ ctx.start ];
         ctx.complete          = &complete;
 
-        bool blocking = false;
-
-        threadPoolSubmitJob( tp, _cpu_add_thread, &ctx, blocking );
+        threadPoolSubmitJob( tp, _cpu_add_thread, &ctx, THREAD_POOL_SUBMIT_BLOCKING );
     }
 
     // Wait for threads to complete
