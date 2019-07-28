@@ -74,8 +74,6 @@ typedef struct _thread {
 
 
 typedef struct _thread_pool {
-    std::mutex mutex; // TODO: the pool needs to be lockless
-
     thread_pool_t          hPool;
     std::vector<_thread_t> threads;
     std::atomic<uint64_t>  nexthandle;
@@ -115,7 +113,7 @@ thread_pool_t threadPoolInit( uint32_t numThreads )
     std::lock_guard<std::mutex> lock( s_pools_mutex );
 
     for ( int i = 0; i < ARRAY_SIZE( s_pools ); i++ ) {
-        std::lock_guard<std::mutex> lock_queue( s_pools[ i ].mutex );
+        SpinLockGuard( s_pools[ i ].spinLock );
 
         if ( s_pools[ i ].hPool == INVALID_THREAD_POOL ) {
             tp        = &s_pools[ i ];
@@ -160,7 +158,7 @@ job_t threadPoolSubmitJob( thread_pool_t pool, jobFunction function, void* conte
     Job job;
     job.pContext    = context;
     job.pFunction   = std::bind( function, std::placeholders::_1, std::placeholders::_2 );
-    job.handle      = tp->nexthandle++;
+    job.handle      = (job_t)tp->nexthandle++;
     job.groupHandle = INVALID_JOB_GROUP;
 
     // NOTE: do NOT hold the spinlock when calling queue_send_blocking();
@@ -190,8 +188,8 @@ job_t threadPoolSubmitJob( thread_pool_t pool, TYPE* object, bool ( TYPE::*metho
     _thread_pool_t* tp = &s_pools[ pool ];
 
     Job job;
-    job.pFunction   = std::bind( method, object, std::placeholders::_1, std::placeholders::_2 );
     job.pContext    = context;
+    job.pFunction   = std::bind( method, object, std::placeholders::_1, std::placeholders::_2 );
     job.handle      = tp->nexthandle++;
     job.groupHandle = INVALID_JOB_GROUP;
 
@@ -380,7 +378,7 @@ public:
 
         //printf( "_method1[%d]: %d .. %d\n", tid, ctx->offset, ctx->offset + ctx->blockSize );
 
-        for ( int i = ctx->offset; i < ctx->offset + ctx->blockSize; i++ ) {
+        for ( unsigned i = ctx->offset; i < ctx->offset + ctx->blockSize; i++ ) {
             ctx->array2[ i ] = ctx->array1[ i ] * 2;
         }
 
@@ -394,7 +392,7 @@ public:
 
         //printf( "method1[%d]: %d .. %d\n", tid, ctx->offset, ctx->offset + ctx->blockSize );
 
-        for ( int i = ctx->offset; i < ctx->offset + ctx->blockSize; i++ ) {
+        for ( unsigned i = ctx->offset; i < ctx->offset + ctx->blockSize; i++ ) {
             ctx->array2[ i ] = ctx->array1[ i ] * 2;
         }
 
@@ -408,7 +406,7 @@ public:
 
         //printf( "method2[%d]: %d .. %d\n", tid, ctx->offset, ctx->offset + ctx->blockSize );
 
-        for ( int i = ctx->offset; i < ctx->offset + ctx->blockSize; i++ ) {
+        for ( unsigned i = ctx->offset; i < ctx->offset + ctx->blockSize; i++ ) {
             ctx->array2[ i ] = ctx->array1[ i ] * 2;
         }
 
@@ -421,7 +419,7 @@ public:
 
         //printf( "method3[%d]: %d .. %d\n", tid, ctx->offset, ctx->offset + ctx->blockSize );
 
-        for ( int i = ctx->offset; i < ctx->offset + ctx->blockSize; i++ ) {
+        for ( unsigned i = ctx->offset; i < ctx->offset + ctx->blockSize; i++ ) {
             ctx->array2[ i ] = ctx->array1[ i ] * 2;
         }
 
@@ -436,7 +434,7 @@ bool _job( void* context, uint32_t tid )
 
     //printf( "_job[%d]: %d .. %d\n", tid, ctx->offset, ctx->offset + ctx->blockSize );
 
-    for ( int i = ctx->offset; i < ctx->offset + ctx->blockSize; i++ ) {
+    for ( unsigned i = ctx->offset; i < ctx->offset + ctx->blockSize; i++ ) {
         ctx->array2[ i ] = ctx->array1[ i ] * 2;
     }
 
