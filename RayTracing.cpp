@@ -47,7 +47,7 @@ int main( int argc, char** argv )
     //bool cuda = true;
     bool cuda = false;
     if ( args.cmdOptionExists( "-c" ) ) {
-        cuda = false;
+        cuda = !cuda;
     }
 
     int aaSamples = NUM_AA_SAMPLES;
