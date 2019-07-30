@@ -10,15 +10,15 @@ __host__ __device__ static vector3 _reflect( const vector3& v, const vector3& no
 __host__ __device__ static bool    _refract( const vector3& v, const vector3& normal, float ni_over_nt, vector3* refracted );
 __host__ __device__ static float   _schlick( float cosine, float refractionIndex );
 
-__host__ __device__ static bool _diffuseScatter( const material_t* d, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered );
-__host__ __device__ static bool _metalScatter( const material_t* m, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered );
-__host__ __device__ static bool _glassScatter( const material_t* g, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered );
+__host__ __device__ static bool _diffuseScatter( const material_t& d, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered );
+__host__ __device__ static bool _metalScatter( const material_t& m, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered );
+__host__ __device__ static bool _glassScatter( const material_t& g, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered );
 
-__host__ __device__ bool materialScatter( const material_t* m, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered )
+__host__ __device__ bool materialScatter( const material_t& m, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered )
 {
     bool rval = false;
 
-    switch ( m->type ) {
+    switch ( m.type ) {
         case MATERIAL_DIFFUSE:
             rval = _diffuseScatter( m, r, hit, attenuation, scattered );
             break;
@@ -32,7 +32,7 @@ __host__ __device__ bool materialScatter( const material_t* m, const ray& r, con
             break;
 
         default:
-            printf("unknown material %d\n", m->type);
+            printf("unknown material %d\n", m.type);
             assert( 0 );
     }
 
@@ -44,29 +44,29 @@ __host__ __device__ bool materialScatter( const material_t* m, const ray& r, con
 //
 
 #pragma nv_exec_check_disable
-__host__ __device__ static bool _diffuseScatter( const material_t* d, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered )
+__host__ __device__ static bool _diffuseScatter( const material_t& d, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered )
 {
     vector3 target    = hit.point + hit.normal + randomInUnitSphere();
     *scattered        = ray( hit.point, target - hit.point );
-    *attenuation      = d->albedo;
+    *attenuation      = d.albedo;
 
     return true;
 }
 
 
 #pragma nv_exec_check_disable
-__host__ __device__ static bool _metalScatter( const material_t* m, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered )
+__host__ __device__ static bool _metalScatter( const material_t& m, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered )
 {
     vector3 reflected = _reflect( r.direction.normalized(), hit.normal );
-    *scattered        = ray( hit.point, reflected + ( m->blur * randomInUnitSphere() ) );
-    *attenuation      = m->albedo;
+    *scattered        = ray( hit.point, reflected + ( m.blur * randomInUnitSphere() ) );
+    *attenuation      = m.albedo;
 
     return ( scattered->direction.dot( hit.normal ) > 0 );
 }
 
 
 #pragma nv_exec_check_disable
-__host__ __device__ static bool _glassScatter( const material_t* g, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered )
+__host__ __device__ static bool _glassScatter( const material_t& g, const ray& r, const hit_info& hit, vector3* attenuation, ray* scattered )
 {
     vector3 outwardNormal;
     vector3 reflected = _reflect( r.direction, hit.normal );
@@ -79,16 +79,16 @@ __host__ __device__ static bool _glassScatter( const material_t* g, const ray& r
 
     if ( r.direction.dot( hit.normal ) > 0 ) {
         outwardNormal = -hit.normal;
-        niOverNt      = g->refractionIndex;
-        cosine        = g->refractionIndex * r.direction.dot( hit.normal ) / r.direction.length();
+        niOverNt      = g.refractionIndex;
+        cosine        = g.refractionIndex * r.direction.dot( hit.normal ) / r.direction.length();
     } else {
         outwardNormal = hit.normal;
-        niOverNt      = 1.0f / g->refractionIndex;
+        niOverNt      = 1.0f / g.refractionIndex;
         cosine        = -r.direction.dot( hit.normal ) / r.direction.length();
     }
 
     if ( _refract( r.direction, outwardNormal, niOverNt, &refracted ) ) {
-        probability = _schlick( cosine, g->refractionIndex );
+        probability = _schlick( cosine, g.refractionIndex );
     } else {
         probability = 1.0f;
     }

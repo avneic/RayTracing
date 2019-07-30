@@ -3,37 +3,34 @@
 #include "material.h"
 #include "perf_timer.h"
 #include "ray.h"
-#include "scene.h"
+#include "sphere.h"
 #include "thread_pool.h"
 #include "vector_cuda.h"
 
+#include <assert.h>
 #include <atomic>
-#include <cassert>
-#include <cstdint>
-#include <cstdio>
 #include <limits>
+#include <stdint.h>
+#include <stdio.h>
 #include <string>
 #include <thread>
 
 namespace pk
 {
 
-static vector3 _color_recursive( const ray& r, const Scene* scene, unsigned depth, unsigned max_depth );
-static vector3 _color( const ray& r, const Scene* scene, unsigned depth, unsigned max_depth );
-static vector3 _background( const ray& r );
-
 typedef struct _RenderThreadContext {
-    const Scene*           scene;
     const Camera*          camera;
-    uint32_t*              frameBuffer;
-    uint32_t               blockID;
-    uint32_t               blockSize;
-    uint32_t               xOffset;
-    uint32_t               yOffset;
+    const sphere_t*        scene;
+    uint32_t               sceneSize;
+    uint32_t*              framebuffer;
     uint32_t               rows;
     uint32_t               cols;
     uint32_t               num_aa_samples;
     uint32_t               max_ray_depth;
+    uint32_t               blockID;
+    uint32_t               blockSize;
+    uint32_t               xOffset;
+    uint32_t               yOffset;
     std::atomic<uint32_t>* blockCount;
     uint32_t               totalBlocks;
     bool                   debug;
@@ -42,7 +39,7 @@ typedef struct _RenderThreadContext {
     _RenderThreadContext() :
         scene( nullptr ),
         camera( nullptr ),
-        frameBuffer( nullptr ),
+        framebuffer( nullptr ),
         blockSize( 0 ),
         xOffset( 0 ),
         yOffset( 0 ),
@@ -51,10 +48,16 @@ typedef struct _RenderThreadContext {
     {
     }
 } RenderThreadContext;
-static bool _renderThread( void* context, uint32_t tid );
 
 
-int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsigned cols, uint32_t* frameBuffer, unsigned num_aa_samples, unsigned max_ray_depth, unsigned numThreads, unsigned blockSize, bool debug, bool recursive )
+static bool    _sceneHit( const sphere_t* scene, uint32_t sceneSize, const ray& r, float min, float max, hit_info* p_hit );
+static vector3 _color_recursive( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned depth, unsigned max_depth );
+static vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned depth, unsigned max_depth );
+static vector3 _background( const ray& r );
+static bool    _renderJob( void* context, uint32_t tid );
+
+
+int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsigned cols, uint32_t* framebuffer, unsigned num_aa_samples, unsigned max_ray_depth, unsigned numThreads, unsigned blockSize, bool debug, bool recursive )
 {
     PerfTimer t;
 
@@ -68,6 +71,25 @@ int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsign
     printf( "Render %d x %d: blockSize %d x %d, %d blocks, [%d:%d] threads \n",
         cols, rows, blockSize, blockSize, numBlocks, tp, numThreads );
 
+
+    // Flatten the Scene object to an array of sphere_t, which is what Scene should've been in the first place
+    size_t    sceneSize = sizeof( sphere_t ) * scene.objects.size();
+    sphere_t* pScene    = (sphere_t*)new uint8_t[ sceneSize ];
+    printf( "Allocated %zd bytes for %zd objects\n", sceneSize, scene.objects.size() );
+
+    sphere_t* p = pScene;
+    for ( IVisible* obj : scene.objects ) {
+        Sphere*   s1 = dynamic_cast<Sphere*>( obj );
+        sphere_t* s2 = (sphere_t*)p;
+        s2->center   = s1->center;
+        s2->radius   = s1->radius;
+        s2->material = *( s1->material );
+
+        p++;
+    }
+    printf( "Flattened %zd scene objects to vector\n", scene.objects.size() );
+
+
     RenderThreadContext* contexts = new RenderThreadContext[ numBlocks ];
 
     std::atomic<uint32_t> blockCount = 0;
@@ -77,9 +99,10 @@ int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsign
         uint32_t xOffset = 0;
         for ( uint32_t x = 0; x < widthBlocks; x++ ) {
             RenderThreadContext* ctx = &contexts[ blockID ];
-            ctx->scene               = &scene;
+            ctx->scene               = pScene;
+            ctx->sceneSize           = (uint32_t)scene.objects.size();
             ctx->camera              = &camera;
-            ctx->frameBuffer         = frameBuffer;
+            ctx->framebuffer         = framebuffer;
             ctx->blockID             = blockID;
             ctx->blockSize           = blockSize;
             ctx->xOffset             = xOffset;
@@ -93,9 +116,7 @@ int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsign
             ctx->debug               = debug;
             ctx->recursive           = recursive;
 
-            // job_t threadPoolSubmitJob( thread_pool_t pool, jobFunction function, void* context, thread_pool_blocking_t blocking = THREAD_POOL_SUBMIT_BLOCKING );
-
-            threadPoolSubmitJob( tp, _renderThread, ctx );
+            threadPoolSubmitJob( tp, _renderJob, ctx );
 
             //printf( "Submit block %d of %d\n", blockID, numBlocks );
 
@@ -110,16 +131,18 @@ int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsign
         delay( 1000 );
         printf( "." );
     }
+    printf( "\n" );
 
     threadPoolDeinit( tp );
     delete[] contexts;
+    ///////delete[] pScene;
 
-    printf( "\nrenderScene: %f s\n", t.ElapsedSeconds() );
+    printf( "renderScene: %f s\n", t.ElapsedSeconds() );
 
     return 0;
 }
 
-static bool _renderThread( void* context, uint32_t tid )
+static bool _renderJob( void* context, uint32_t tid )
 {
     UNUSED( tid );
 
@@ -143,7 +166,7 @@ static bool _renderThread( void* context, uint32_t tid )
 
             // TEST
             if ( ctx->debug && ( y == ctx->yOffset || y == ctx->yOffset + ctx->blockSize - 1 || x == ctx->xOffset || x == ctx->xOffset + ctx->blockSize - 1 ) ) {
-                ctx->frameBuffer[ y * ctx->cols + x ] = 0xFF000000;
+                ctx->framebuffer[ y * ctx->cols + x ] = 0xFF000000;
                 continue;
             }
 
@@ -156,9 +179,9 @@ static bool _renderThread( void* context, uint32_t tid )
                 ray   r = ctx->camera->getRay( u, v );
 
                 if ( ctx->recursive ) {
-                    color += _color_recursive( r, ctx->scene, 0, ctx->max_ray_depth );
+                    color += _color_recursive( r, ctx->scene, ctx->sceneSize, 0, ctx->max_ray_depth );
                 } else {
-                    color += _color( r, ctx->scene, 0, ctx->max_ray_depth );
+                    color += _color( r, ctx->scene, ctx->sceneSize, 0, ctx->max_ray_depth );
                 }
             }
             color /= float( ctx->num_aa_samples );
@@ -171,7 +194,7 @@ static bool _renderThread( void* context, uint32_t tid )
             uint8_t  _b  = ( uint8_t )( 255.99 * color.z );
             uint32_t rgb = ( (uint32_t)_r << 24 ) | ( (uint32_t)_g << 16 ) | ( (uint32_t)_b << 8 );
 
-            ctx->frameBuffer[ y * ctx->cols + x ] = rgb;
+            ctx->framebuffer[ y * ctx->cols + x ] = rgb;
         }
     }
 
@@ -187,11 +210,11 @@ static bool _renderThread( void* context, uint32_t tid )
 }
 
 // Recursively trace each ray through objects/materials
-static vector3 _color_recursive( const ray& r, const Scene* scene, unsigned depth, unsigned max_depth )
+static vector3 _color_recursive( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned depth, unsigned max_depth )
 {
     hit_info hit;
 
-    if ( scene->hit( r, 0.001f, ( std::numeric_limits<float>::max )(), &hit ) ) {
+    if ( _sceneHit( scene, sceneSize, r, 0.001f, ( std::numeric_limits<float>::max )(), &hit ) ) {
 #if defined( NORMAL_SHADE )
         vector3 normal = ( r.point( hit.distance ) - vector3( 0, 0, -1 ) ).normalized();
         return 0.5f * vector3( normal.x + 1, normal.y + 1, normal.z + 1 );
@@ -205,8 +228,8 @@ static vector3 _color_recursive( const ray& r, const Scene* scene, unsigned dept
 #else
         ray     scattered;
         vector3 attenuation;
-        if ( depth < max_depth && hit.material && materialScatter( hit.material, r, hit, &attenuation, &scattered ) ) {
-            return attenuation * _color( scattered, scene, depth + 1, max_depth );
+        if ( depth < max_depth && materialScatter( hit.material, r, hit, &attenuation, &scattered ) ) {
+            return attenuation * _color_recursive( scattered, scene, sceneSize, depth + 1, max_depth );
         } else {
             return vector3( 0, 0, 0 );
         }
@@ -217,7 +240,7 @@ static vector3 _color_recursive( const ray& r, const Scene* scene, unsigned dept
 }
 
 // Non-recursive version
-static vector3 _color( const ray& r, const Scene* scene, unsigned depth, unsigned max_depth )
+static vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned depth, unsigned max_depth )
 {
     hit_info hit;
     vector3  attenuation;
@@ -225,7 +248,7 @@ static vector3 _color( const ray& r, const Scene* scene, unsigned depth, unsigne
     vector3  color( 1, 1, 1 );
 
     for ( unsigned i = 0; i < max_depth; i++ ) {
-        if ( scene->hit( scattered, 0.001f, ( std::numeric_limits<float>::max )(), &hit ) ) {
+        if ( _sceneHit( scene, sceneSize, scattered, 0.001f, ( std::numeric_limits<float>::max )(), &hit ) ) {
 #if defined( NORMAL_SHADE )
             vector3 normal = ( r.point( hit.distance ) - vector3( 0, 0, -1 ) ).normalized();
             return 0.5f * vector3( normal.x + 1, normal.y + 1, normal.z + 1 );
@@ -234,7 +257,7 @@ static vector3 _color( const ray& r, const Scene* scene, unsigned depth, unsigne
             scattered      = ray( hit.point, target - hit.point );
             color *= 0.5f;
 #else
-            if ( hit.material && materialScatter( hit.material, scattered, hit, &attenuation, &scattered ) ) {
+            if ( materialScatter( hit.material, scattered, hit, &attenuation, &scattered ) ) {
                 color *= attenuation;
             } else {
                 break;
@@ -256,6 +279,28 @@ static vector3 _background( const ray& r )
     float   t             = 0.5f * ( unitDirection.y + 1.0f );
 
     return ( 1.0f - t ) * vector3( 1.0f, 1.0f, 1.0f ) + t * vector3( 0.5f, 0.7f, 1.0f );
+}
+
+
+static bool _sceneHit( const sphere_t* scene, uint32_t sceneSize, const ray& r, float min, float max, hit_info* p_hit )
+{
+    bool     rval         = false;
+    float    closestSoFar = max;
+    hit_info hit;
+
+    for ( unsigned i = 0; i < sceneSize; i++ ) {
+        const sphere_t& sphere = scene[ i ];
+
+        hit_info tmp;
+        if ( sphereHit( sphere, r, min, closestSoFar, &tmp ) ) {
+            rval         = true;
+            closestSoFar = tmp.distance;
+            hit          = tmp;
+        }
+    }
+
+    *p_hit = hit;
+    return rval;
 }
 
 } // namespace pk

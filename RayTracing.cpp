@@ -8,15 +8,14 @@
 #include "perf_timer.h"
 #include "ray.h"
 #include "raytracer.h"
-#include "scene.h"
 #include "sphere.h"
 #include "test.h"
 #include "utils.h"
 #include "vector_cuda.h"
 
-#include <cassert>
-#include <cstdint>
-#include <cstdio>
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <thread>
 
 using namespace pk;
@@ -26,6 +25,8 @@ const unsigned int ROWS = 1000;
 
 // Anti-aliasing
 // NOTE: if a CUDA program takes > 2 seconds to execute, Windows may kill it.
+// You can change this in the Nvidia control panel, but it
+// requires Admin privileges and reboot.
 const unsigned int NUM_AA_SAMPLES = 25;
 
 // Max bounces per ray
@@ -44,10 +45,12 @@ int main( int argc, char** argv )
     //
     ArgsParser args( argc, argv );
 
+    bool ispc = false;
     //bool cuda = true;
     bool cuda = false;
     if ( args.cmdOptionExists( "-c" ) ) {
         cuda = !cuda;
+        ispc = false;
     }
 
     int aaSamples = NUM_AA_SAMPLES;
@@ -70,6 +73,11 @@ int main( int argc, char** argv )
     std::string filename = "foo.ppm";
     if ( args.cmdOptionExists( "-f" ) ) {
         filename = args.getCmdOption( "-f" );
+    }
+
+    if ( args.cmdOptionExists( "-i" ) ) {
+        ispc = true;
+        cuda = false;
     }
 
     int maxBounce = MAX_RAY_DEPTH;
@@ -131,6 +139,8 @@ int main( int argc, char** argv )
 
     if ( cuda ) {
         renderSceneCUDA( *scene, camera, ROWS, COLS, frameBuffer, aaSamples, maxBounce, numThreads, blockSize, debug, recursive );
+    } else if ( ispc ) {
+        renderSceneISPC( *scene, camera, ROWS, COLS, frameBuffer, aaSamples, maxBounce, numThreads, blockSize, debug, recursive );
     } else {
         renderScene( *scene, camera, ROWS, COLS, frameBuffer, aaSamples, maxBounce, numThreads, blockSize, debug, recursive );
     }

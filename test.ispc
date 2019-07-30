@@ -3,8 +3,12 @@
 // Test ISPC compiler
 //
 
-export void simple(uniform float vin[], uniform float vout[],
-                   uniform int count) {
+export void simple(
+    uniform float vin[],
+    uniform float vout[],
+    uniform int count
+)
+{
     foreach (index = 0 ... count) {
         float v = vin[index];
         if (v < 3.)
@@ -14,4 +18,3 @@ export void simple(uniform float vin[], uniform float vout[],
         vout[index] = v;
     }
 }
-

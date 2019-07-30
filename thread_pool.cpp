@@ -9,10 +9,10 @@
 #include "spin_lock.h"
 #include "utils.h"
 
+#include <assert.h>
 #include <atomic>
-#include <cassert>
-#include <cstdio>
 #include <mutex>
+#include <stdio.h>
 #include <thread>
 #include <unordered_map>
 #include <vector>
@@ -20,8 +20,8 @@
 namespace pk
 {
 
-static const int MAX_THREAD_POOLS         = 4;
-static const int MAX_QUEUE_DEPTH          = 1024;
+static const int MAX_THREAD_POOLS = 4;
+static const int MAX_QUEUE_DEPTH  = 1024;
 
 
 class Job {
@@ -312,14 +312,14 @@ bool threadPoolDeinit( thread_pool_t pool )
     delete[] tp->jobQueueBuffer;
 
     // Print perf metrics
-    for (int i = 0; i < tp->threads.size(); i++) {
-        _thread_t& t = tp->threads[i];
+    for ( int i = 0; i < tp->threads.size(); i++ ) {
+        _thread_t& t = tp->threads[ i ];
 
         std::chrono::steady_clock::duration elapsedTicks = t.stopTick - t.startTick;
-        auto   duration = std::chrono::duration_cast<std::chrono::seconds>( elapsedTicks ).count();
-        double seconds  = std::chrono::duration<double>( duration ).count();
+        auto                                duration     = std::chrono::duration_cast<std::chrono::seconds>( elapsedTicks ).count();
+        double                              seconds      = std::chrono::duration<double>( duration ).count();
 
-        printf("Thread [%d:%d] %zd jobs %f seconds %f jobs/second\n", t.hPool, t.tid, t.jobsExecuted, seconds, t.jobsExecuted / seconds);
+        printf( "Thread [%d:%d] %zd jobs %f seconds %f jobs/second\n", t.hPool, t.tid, t.jobsExecuted, seconds, t.jobsExecuted / seconds );
     }
 
     return true;

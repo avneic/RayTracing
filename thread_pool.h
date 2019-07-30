@@ -6,8 +6,8 @@
 
 #include "result.h"
 
-#include <cstdint>
 #include <functional>
+#include <stdint.h>
 
 namespace pk
 {
@@ -39,10 +39,10 @@ job_group_t threadPoolSubmitJobs( thread_pool_t pool, TYPE** objects, jobFunctio
 job_t       threadPoolSubmitJob( thread_pool_t pool, jobFunction function, void* context, thread_pool_blocking_t blocking = THREAD_POOL_SUBMIT_BLOCKING );
 job_group_t threadPoolSubmitJobs( thread_pool_t pool, jobFunction* functions, void** contexts, size_t numJobs, thread_pool_blocking_t blocking = THREAD_POOL_SUBMIT_BLOCKING );
 
-result      threadPoolWaitForJob( thread_pool_t pool, job_t, uint32_t timeout_ms = INFINITE_TIMEOUT );
-result      threadPoolWaitForJobs( thread_pool_t pool, job_group_t, uint32_t timeout_ms = INFINITE_TIMEOUT );
+result threadPoolWaitForJob( thread_pool_t pool, job_t, uint32_t timeout_ms = INFINITE_TIMEOUT );
+result threadPoolWaitForJobs( thread_pool_t pool, job_group_t, uint32_t timeout_ms = INFINITE_TIMEOUT );
 
-bool        threadPoolDeinit( thread_pool_t pool );
+bool threadPoolDeinit( thread_pool_t pool );
 
 void testThreadPool();
 

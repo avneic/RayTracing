@@ -1,16 +1,14 @@
+#include "raytracer_ispc.h"
+
 #include "material.h"
 #include "perf_timer.h"
 #include "ray.h"
 #include "raytracer.h"
-#include "scene.h"
 #include "sphere.h"
-#include "vector_cuda.h"
 
-#include <cassert>
-#include <cstdint>
-#include <cstdio>
-#include <cuda_runtime.h>
-#include <curand_kernel.h>
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
 
 namespace pk
 {
@@ -47,95 +45,70 @@ typedef struct _RenderThreadContext {
 } RenderThreadContext;
 
 
-static __global__ void    _createCamera( Camera* pdCamera );
-static __global__ void    _render( RenderThreadContext* pdContext );
-static __device__ vector3 _background( const ray& r );
-static __device__ bool    _sphereHit( const sphere_t& sphere, const ray& r, float min, float max, hit_info* p_hit );
-static __device__ bool    _sceneHit( const sphere_t* scene, uint32_t sceneSize, const ray& r, float min, float max, hit_info* p_hit );
+static void    _render( RenderThreadContext* pContext );
+static vector3 _background( const ray& r );
+static bool    _sphereHit( const sphere_t& sphere, const ray& r, float min, float max, hit_info* p_hit );
+static bool    _sceneHit( const sphere_t* scene, uint32_t sceneSize, const ray& r, float min, float max, hit_info* p_hit );
+static vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned max_depth );
 
-static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned max_depth );
 
-int renderSceneCUDA( const Scene& scene, const Camera& camera, unsigned rows, unsigned cols, uint32_t* framebuffer, unsigned num_aa_samples, unsigned max_ray_depth, unsigned numThreads, unsigned blockSize, bool debug, bool recursive )
+int renderSceneISPC( const Scene& scene, const Camera& camera, unsigned rows, unsigned cols, uint32_t* framebuffer, unsigned num_aa_samples, unsigned max_ray_depth, unsigned numThreads, unsigned blockSize, bool debug, bool recursive )
 {
     PerfTimer t;
 
     // Add +1 to block dims in case image is not a multiple of blockSize
     dim3 blocks( cols / blockSize + 1, rows / blockSize + 1 );
     dim3 threads( blockSize, blockSize );
-    printf( "renderSceneCUDA(): blocks %d,%d,%d threads %d,%d\n", blocks.x, blocks.y, blocks.z, threads.x, threads.y );
+    printf( "renderSceneISPC(): blocks %d,%d,%d threads %d,%d\n", blocks.x, blocks.y, blocks.z, threads.x, threads.y );
 
-    // Create a copy of the Camera on the device [ gross hack because Camera is created in main() since before I refactored for CUDA ]
-    Camera* pdCamera = nullptr;
-    CHECK_CUDA( cudaMallocManaged( &pdCamera, sizeof( Camera ) * 2 ) );
-    memcpy( &pdCamera[ 1 ], &camera, sizeof( camera ) );
-    printf( "Allocated %zd device bytes for camera\n", sizeof( camera ) );
-    _createCamera<<<1, 1>>>( pdCamera );
-    CHECK_CUDA( cudaGetLastError() );
-    CHECK_CUDA( cudaDeviceSynchronize() );
-
-    // Copy the Scene to device
     // Flatten the Scene object to an array of sphere_t, which is what Scene should've been in the first place
-    sphere_t* pdScene   = nullptr;
     size_t    sceneSize = sizeof( sphere_t ) * scene.objects.size();
-    CHECK_CUDA( cudaMallocManaged( &pdScene, sceneSize ) );
-    printf( "Allocated %zd device bytes / %zd objects\n", sceneSize, scene.objects.size() );
+    sphere_t* pScene    = (sphere_t*)new uint8_t[ sceneSize ];
+    printf( "Allocated %zd bytes for %zd objects\n", sceneSize, scene.objects.size() );
 
-    sphere_t* p = pdScene;
+    sphere_t* p = pScene;
     for ( IVisible* obj : scene.objects ) {
         Sphere*   s1 = dynamic_cast<Sphere*>( obj );
         sphere_t* s2 = (sphere_t*)p;
         s2->center   = s1->center;
         s2->radius   = s1->radius;
-
-        // Deep copy material to the GPU
         s2->material = *( s1->material );
 
         p++;
     }
-    printf( "Copied %zd objects to device\n", scene.objects.size() );
+    printf( "Flattened %zd scene objects to vector\n", scene.objects.size() );
 
 
-    // Allocate a render context to pass information to the GPU
-    RenderThreadContext* pdContext = nullptr;
-    CHECK_CUDA( cudaMallocManaged( &pdContext, sizeof( RenderThreadContext ) ) );
+    // Allocate a render context to pass to each worker job
+    RenderThreadContext* ctx = nullptr;
+    ctx                      = new RenderThreadContext;
     printf( "Allocated %zd device bytes for context\n", sizeof( RenderThreadContext ) );
-    pdContext->camera         = pdCamera;
-    pdContext->scene          = pdScene;
-    pdContext->sceneSize      = (uint32_t)scene.objects.size();
-    pdContext->framebuffer    = framebuffer;
-    pdContext->rows           = rows;
-    pdContext->cols           = cols;
-    pdContext->num_aa_samples = num_aa_samples;
-    pdContext->max_ray_depth  = max_ray_depth;
-    pdContext->debug          = debug;
+    ctx->scene          = pScene;
+    ctx->sceneSize      = (uint32_t)scene.objects.size();
+    ctx->framebuffer    = framebuffer;
+    ctx->rows           = rows;
+    ctx->cols           = cols;
+    ctx->num_aa_samples = num_aa_samples;
+    ctx->max_ray_depth  = max_ray_depth;
+    ctx->debug          = debug;
+    ctx->xOffset        = 0;
+    ctx->yOffset        = 0;
 
-    // Render the scene
-    _render<<<blocks, threads>>>( pdContext );
-    CHECK_CUDA( cudaGetLastError() );
-    CHECK_CUDA( cudaDeviceSynchronize() );
+    _render( ctx );
 
-    CHECK_CUDA( cudaFree( pdCamera ) );
-    CHECK_CUDA( cudaFree( pdScene ) );
-    CHECK_CUDA( cudaFree( pdContext ) );
+    delete ctx;
+    delete pScene;
 
-    printf( "renderSceneCUDA: %f s\n", t.ElapsedSeconds() );
+    printf( "renderSceneISPC: %f s\n", t.ElapsedSeconds() );
 
     return 0;
 }
 
 
-static __global__ void _createCamera( Camera* pdCamera )
+static void _render( RenderThreadContext* ctx )
 {
-    // Gross hack: allocate a GPU camera by creating a local copy of the host camera's data
-    Camera* prototype = &pdCamera[ 1 ];
-    new ( pdCamera ) Camera( *prototype );
-}
-
-
-static __global__ void _render( RenderThreadContext* ctx )
-{
-    unsigned x = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned y = blockIdx.y * blockDim.y + threadIdx.y;
+    unsigned x = ctx->xOffset;
+    unsigned y = ctx->yOffset;
 
     if ( x >= ctx->cols || y >= ctx->rows )
         return;
@@ -159,8 +132,7 @@ static __global__ void _render( RenderThreadContext* ctx )
 }
 
 
-// Non-recursive version
-static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned max_depth )
+static vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned max_depth )
 {
     hit_info hit;
     vector3  attenuation;
@@ -193,7 +165,7 @@ static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t 
 }
 
 
-static __device__ vector3 _background( const ray& r )
+static vector3 _background( const ray& r )
 {
     vector3 unitDirection = r.direction.normalized();
     float   t             = 0.5f * ( unitDirection.y + 1.0f );
@@ -202,7 +174,7 @@ static __device__ vector3 _background( const ray& r )
 }
 
 
-static __device__ bool _sphereHit( const sphere_t& sphere, const ray& r, float min, float max, hit_info* p_hit )
+static bool _sphereHit( const sphere_t& sphere, const ray& r, float min, float max, hit_info* p_hit )
 {
     assert( p_hit );
 
@@ -236,7 +208,8 @@ static __device__ bool _sphereHit( const sphere_t& sphere, const ray& r, float m
     return false;
 }
 
-static __device__ bool _sceneHit( const sphere_t* scene, uint32_t sceneSize, const ray& r, float min, float max, hit_info* p_hit )
+
+static bool _sceneHit( const sphere_t* scene, uint32_t sceneSize, const ray& r, float min, float max, hit_info* p_hit )
 {
     bool     rval         = false;
     float    closestSoFar = max;

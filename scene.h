@@ -1,8 +1,7 @@
 #pragma once
 
-//#include "material.h"
+#include "material.h"
 #include "ray.h"
-#include "vector_cuda.h"
 
 #include <stdbool.h>
 #include <vector>
@@ -10,22 +9,7 @@
 namespace pk
 {
 
-struct _material;
-
-typedef struct _hit {
-    float      distance;
-    vector3    point;
-    vector3    normal;
-    const struct _material* material;
-
-    __host__ __device__ _hit() :
-        distance( 0.0f ),
-        point( 0, 0, 0 ),
-        normal( 0, 0, 0 ),
-        material( nullptr ) {}
-} hit_info;
-
-
+// DEPRECATED
 class IVisible {
 public:
     IVisible() {};
@@ -34,6 +18,7 @@ public:
 };
 
 
+// DEPRECATED
 class Scene : virtual public IVisible {
 public:
     Scene() {};

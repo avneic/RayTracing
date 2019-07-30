@@ -69,6 +69,9 @@
     <ClInclude Include="spin_lock.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="test_ispc.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -95,6 +98,9 @@
     <ClCompile Include="thread_pool.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="raytracer_ispc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="raytracer.cu">
@@ -111,8 +117,13 @@
     </CudaCompile>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="test.ispc">
+    <CustomBuild Include="test.ispc">
       <Filter>Source Files</Filter>
-    </Text>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="raytracer.ispc">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

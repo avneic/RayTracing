@@ -189,6 +189,7 @@
     <ClInclude Include="ray.h" />
     <ClInclude Include="result.h" />
     <ClInclude Include="sphere.h" />
+    <ClInclude Include="test_ispc.h" />
     <ClInclude Include="thread_pool.h" />
     <ClInclude Include="utils.h" />
     <ClInclude Include="vector.h" />
@@ -203,6 +204,10 @@
     <ClCompile Include="perf_timer.cpp">
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch.h</ForcedIncludeFiles>
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">pch.h</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">pch.h</ForcedIncludeFiles>
+      <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pch.h</ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="raytracer_ispc.cpp">
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">pch.h</ForcedIncludeFiles>
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pch.h</ForcedIncludeFiles>
     </ClCompile>
@@ -278,6 +283,17 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">ispc --arch=x86-64 --addressing=64 -O2 --target=avx %(FullPath) -o $(IntermediateOutputPath)%(Filename)_ispc.obj -h %(RelativeDir)%(Filename)_ispc.h</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling with ISPC</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntermediateOutputPath)%(Filename)_ispc.obj</Outputs>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="raytracer.ispc">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ispc --arch=x86-64 --addressing=64 -O2 --target=avx %(FullPath) -o $(IntermediateOutputPath)%(Filename)_ispc.obj -h %(RelativeDir)%(Filename)_ispc.h</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ispc --arch=x86-64 --addressing=64 -O2 --target=avx %(FullPath) -o $(IntermediateOutputPath)%(Filename)_ispc.obj -h %(RelativeDir)%(Filename)_ispc.h</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling with ISPC</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntermediateOutputPath)%(Filename)_ispc.obj</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling with ISPC</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntermediateOutputPath)%(Filename)_ispc.obj</Outputs>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

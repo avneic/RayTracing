@@ -12,7 +12,6 @@ namespace pk
 {
 
 const unsigned int TOTAL_ELEMENTS = ( 1 << 20 );
-//const unsigned int TOTAL_ELEMENTS = ( 1 << 29 );
 const unsigned int BLOCK_SIZE = TOTAL_ELEMENTS / 4;
 const unsigned int NUM_BLOCKS = TOTAL_ELEMENTS / BLOCK_SIZE;
 

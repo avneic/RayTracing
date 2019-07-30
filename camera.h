@@ -4,10 +4,10 @@
 #include "utils.h"
 #include "vector_cuda.h"
 
-#include <cfloat> // for FLT_MAX
-#include <cstdint>
-#include <cstdio>
+#include <float.h> // for FLT_MAX
 #include <limits.h>
+#include <stdint.h>
+#include <stdio.h>
 
 namespace pk
 {

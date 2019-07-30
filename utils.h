@@ -3,9 +3,9 @@
 #include "result.h"
 #include "vector_cuda.h"
 
-#include <csignal>
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
+#include <signal.h>
 
 
 namespace pk
@@ -82,14 +82,13 @@ void check_cuda( cudaError_t result, char const* const function, const char* con
 bool delay( size_t ms );
 
 // Give thread a sensible name in the debugger
-result threadSetName( const char *name );
+result threadSetName( const char* name );
 #define SET_THREAD_NAME()            \
     {                                \
         char name[ 32 ];             \
         sprintf_s( name, __func__ ); \
         threadSetName( name );       \
     }
-
 
 
 __host__ __device__ float random();
