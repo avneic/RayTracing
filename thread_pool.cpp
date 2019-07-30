@@ -21,8 +21,7 @@ namespace pk
 {
 
 static const int MAX_THREAD_POOLS         = 4;
-static const int MAX_QUEUE_DEPTH          = 512;
-static const int MAX_JOBS_PER_THREAD_POOL = 512;
+static const int MAX_QUEUE_DEPTH          = 1024;
 
 
 class Job {
@@ -56,19 +55,27 @@ typedef struct _thread {
     std::thread*      thread;
     std::atomic<bool> shouldExit;
 
+    // For perf debugging
+    std::chrono::steady_clock::time_point startTick;
+    std::chrono::steady_clock::time_point stopTick;
+    uint64_t                              jobsExecuted;
+
     _thread() :
         tid( -1 ),
+        hPool( INVALID_THREAD_POOL ),
         thread( nullptr ),
-        shouldExit( false )
+        shouldExit( false ),
+        jobsExecuted( 0 )
     {
     }
 
     _thread( const _thread& rhs )
     {
-        tid        = rhs.tid;
-        hPool      = rhs.hPool;
-        thread     = std::move( rhs.thread );
-        shouldExit = false;
+        tid          = rhs.tid;
+        hPool        = rhs.hPool;
+        thread       = std::move( rhs.thread );
+        shouldExit   = false;
+        jobsExecuted = rhs.jobsExecuted;
     }
 } _thread_t;
 
@@ -78,7 +85,7 @@ typedef struct _thread_pool {
     std::vector<_thread_t> threads;
     std::atomic<uint64_t>  nexthandle;
     Job*                   jobQueueBuffer;
-    obj_queue_t            jobQueue; // TODO: the queue needs to be lockless
+    obj_queue_t            jobQueue;
 
     SpinLock                                        spinLock;
     std::unordered_map<job_t, std::atomic_bool>     jobCompletion;
@@ -304,6 +311,17 @@ bool threadPoolDeinit( thread_pool_t pool )
     Queue<Job>::destroy( tp->jobQueue );
     delete[] tp->jobQueueBuffer;
 
+    // Print perf metrics
+    for (int i = 0; i < tp->threads.size(); i++) {
+        _thread_t& t = tp->threads[i];
+
+        std::chrono::steady_clock::duration elapsedTicks = t.stopTick - t.startTick;
+        auto   duration = std::chrono::duration_cast<std::chrono::seconds>( elapsedTicks ).count();
+        double seconds  = std::chrono::duration<double>( duration ).count();
+
+        printf("Thread [%d:%d] %zd jobs %f seconds %f jobs/second\n", t.hPool, t.tid, t.jobsExecuted, seconds, t.jobsExecuted / seconds);
+    }
+
     return true;
 }
 
@@ -330,19 +348,21 @@ static void _threadWorker( void* context )
     _thread_t*      thread = (_thread_t*)context;
     _thread_pool_t* tp     = &s_pools[ thread->hPool ];
 
+    thread->startTick = std::chrono::steady_clock::now();
     //printf( "_threadWorker[%d:%d] started\n", thread->pool, thread->tid );
 
     while ( true ) {
         if ( thread->shouldExit )
-            return;
+            goto Exit;
 
         Job job;
         if ( R_OK == Queue<Job>::receive( tp->jobQueue, &job, sizeof( job ), ( std::numeric_limits<unsigned int>::max )() ) ) {
             if ( thread->shouldExit )
-                return;
+                goto Exit;
 
             uint32_t tid = uint32_t( thread->hPool << 16 | thread->tid );
             job.invoke( tid );
+            thread->jobsExecuted++;
 
             // Signal that job has completed
             SpinLockGuard lock( tp->spinLock );
@@ -356,6 +376,9 @@ static void _threadWorker( void* context )
             }
         }
     }
+
+Exit:
+    thread->stopTick = std::chrono::steady_clock::now();
 }
 
 
