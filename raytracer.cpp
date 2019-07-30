@@ -65,7 +65,7 @@ int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsign
     uint32_t      numBlocks    = heightBlocks * widthBlocks;
     thread_pool_t tp           = threadPoolInit( numThreads );
 
-    printf( "Render %d x %d: blockSize %d x %d, %d blocks threads [%d:%d]\n",
+    printf( "Render %d x %d: blockSize %d x %d, %d blocks, [%d:%d] threads \n",
         cols, rows, blockSize, blockSize, numBlocks, tp, numThreads );
 
     RenderThreadContext* contexts = new RenderThreadContext[ numBlocks ];
@@ -110,10 +110,10 @@ int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsign
         delay( 1000 );
     }
 
+    printf( "renderScene: %f s\n", t.ElapsedSeconds() );
+
     threadPoolDeinit( tp );
     delete[] contexts;
-
-    printf( "renderScene: %f s\n", t.ElapsedSeconds() );
 
     return 0;
 }

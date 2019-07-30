@@ -44,8 +44,8 @@ int main( int argc, char** argv )
     //
     ArgsParser args( argc, argv );
 
-    bool cuda = true;
-    //bool cuda = false;
+    //bool cuda = true;
+    bool cuda = false;
     if ( args.cmdOptionExists( "-c" ) ) {
         cuda = false;
     }
