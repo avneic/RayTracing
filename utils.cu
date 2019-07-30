@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "result.h"
 
 #include <chrono>
 #include <iostream>
@@ -7,6 +8,16 @@
 
 #ifdef USE_CUDA
 #include <cuda_runtime.h>
+#endif
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+#ifdef _WIN32
+#include <psapi.h> // must come after windows.h
+#include <locale>
+#include <codecvt>
 #endif
 
 
@@ -29,6 +40,26 @@ bool delay( size_t ms )
 
     return true;
 }
+
+
+result threadSetName(const char* name)
+{
+#ifdef _WIN32
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    //std::string narrow = converter.to_bytes(wide_utf16_source_string);
+    std::wstring wchar_name = converter.from_bytes(name);
+
+    SetThreadDescription(
+        GetCurrentThread(),
+        wchar_name.data()
+    );
+
+    return R_OK;
+#else
+    reutrn R_NOTIMPL;
+#endif
+}
+
 
 
 __device__ __host__ float random()

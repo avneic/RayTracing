@@ -108,12 +108,13 @@ int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsign
     // Wait for threads to complete
     while ( blockCount != numBlocks ) {
         delay( 1000 );
+        printf( "." );
     }
 
     threadPoolDeinit( tp );
     delete[] contexts;
 
-    printf( "renderScene: %f s\n", t.ElapsedSeconds() );
+    printf( "\nrenderScene: %f s\n", t.ElapsedSeconds() );
 
     return 0;
 }
@@ -174,13 +175,13 @@ static bool _renderThread( void* context, uint32_t tid )
         }
     }
 
-    //printf( "block %d of %d DONE\n", ctx->blockID, ctx->totalBlocks );
-
     // Notify main thread that we have completed the work
     if ( ctx->blockID == ctx->totalBlocks - 1 ) {
         std::atomic<uint32_t>* blockCount = ctx->blockCount;
         blockCount->exchange( ctx->totalBlocks );
     }
+
+    //printf( "block %d of %d (%d) DONE\n", ctx->blockID, ctx->totalBlocks, ctx->blockCount->load() );
 
     return true;
 }

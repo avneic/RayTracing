@@ -325,6 +325,8 @@ static bool _valid( thread_pool_t pool )
 // Call the user-supplied function, passing a thread ID (informational) and the user-supplied function context
 static void _threadWorker( void* context )
 {
+    SET_THREAD_NAME();
+
     _thread_t*      thread = (_thread_t*)context;
     _thread_pool_t* tp     = &s_pools[ thread->hPool ];
 
