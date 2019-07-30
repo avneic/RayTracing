@@ -263,6 +263,23 @@
       <FileType>CppCode</FileType>
     </CudaCompile>
   </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="test.ispc">
+      <FileType>Text</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ispc --arch=x86-64 --addressing=64 -O2 --target=avx %(FullPath) -o $(IntermediateOutputPath)%(Filename)_ispc.obj -h %(RelativeDir)%(Filename)_ispc.h</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntermediateOutputPath)%(Filename)_ispc.obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ispc --arch=x86-64 --addressing=64 -O2 --target=avx %(FullPath) -o $(IntermediateOutputPath)%(Filename)_ispc.obj -h %(RelativeDir)%(Filename)_ispc.h</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntermediateOutputPath)%(Filename)_ispc.obj</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling with ISPC</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling with ISPC</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">ispc --arch=x86-64 --addressing=64 -O2 --target=avx %(FullPath) -o $(IntermediateOutputPath)%(Filename)_ispc.obj -h %(RelativeDir)%(Filename)_ispc.h</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compiling with ISPC</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntermediateOutputPath)%(Filename)_ispc.obj</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">ispc --arch=x86-64 --addressing=64 -O2 --target=avx %(FullPath) -o $(IntermediateOutputPath)%(Filename)_ispc.obj -h %(RelativeDir)%(Filename)_ispc.h</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling with ISPC</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntermediateOutputPath)%(Filename)_ispc.obj</Outputs>
+    </CustomBuild>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 9.2.targets" />
