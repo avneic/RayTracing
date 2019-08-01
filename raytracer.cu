@@ -52,7 +52,6 @@ static __global__ void    _render( RenderThreadContext* pdContext );
 static __device__ vector3 _background( const ray& r );
 static __device__ bool    _sphereHit( const sphere_t& sphere, const ray& r, float min, float max, hit_info* p_hit );
 static __device__ bool    _sceneHit( const sphere_t* scene, uint32_t sceneSize, const ray& r, float min, float max, hit_info* p_hit );
-
 static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t sceneSize, unsigned max_depth );
 
 int renderSceneCUDA( const Scene& scene, const Camera& camera, unsigned rows, unsigned cols, uint32_t* framebuffer, unsigned num_aa_samples, unsigned max_ray_depth, unsigned numThreads, unsigned blockSize, bool debug, bool recursive )
@@ -173,7 +172,7 @@ static __device__ vector3 _color( const ray& r, const sphere_t* scene, uint32_t 
             vector3 normal = ( r.point( hit.distance ) - vector3( 0, 0, -1 ) ).normalized();
             return 0.5f * vector3( normal.x + 1.0f, normal.y + 1.0f, normal.z + 1.0f );
 #elif defined( DIFFUSE_SHADE )
-            vector3 target = hit.point + hit.normal + randomInUnitSphereCUDA( rand );
+            vector3 target = hit.point + hit.normal + randomInUnitSphere();
             scattered      = ray( hit.point, target - hit.point );
             color *= 0.5f;
 #else

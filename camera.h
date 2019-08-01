@@ -42,7 +42,15 @@ public:
 
         printf( "Camera(): fov %4.1f aspect %4.1f aperture %4.1f (%f, %f, %f) -> (%f, %f, %f) (%f : %f)\n",
             vfov, aspect, aperture, origin.x, origin.y, origin.z, lookat.x, lookat.y, lookat.z, focusDistance, ( origin - lookat ).length() );
-    }
+
+        printf( "u[%f, %f, %f] v[%f, %f, %f] w[%f, %f, %f] horizontal[%f, %f, %f] vertical[%f, %f, %f]\n",
+            u.x, u.y, u.z,
+            v.x, v.y, v.z,
+            w.x, w.y, w.z,
+            horizontal.x, horizontal.y, horizontal.z,
+            vertical.x, vertical.y, vertical.z
+        );
+}
 
     __host__ __device__ Camera( const Camera& rhs ) :
         origin( rhs.origin ),

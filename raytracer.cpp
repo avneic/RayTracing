@@ -61,7 +61,7 @@ int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsign
 {
     PerfTimer t;
 
-    // Spin up a pool of render threads, one per block
+    // Spin up a pool of render threads
     // Allocate width+1 and height+1 blocks to handle case where image is not an even multiple of block size
     uint32_t      widthBlocks  = uint32_t( float( cols / blockSize ) ) + 1;
     uint32_t      heightBlocks = uint32_t( float( rows / blockSize ) ) + 1;
@@ -87,7 +87,7 @@ int renderScene( const Scene& scene, const Camera& camera, unsigned rows, unsign
 
         p++;
     }
-    printf( "Flattened %zd scene objects to vector\n", scene.objects.size() );
+    printf( "Flattened %zd scene objects to array\n", scene.objects.size() );
 
 
     RenderThreadContext* contexts = new RenderThreadContext[ numBlocks ];
@@ -221,7 +221,7 @@ static vector3 _color_recursive( const ray& r, const sphere_t* scene, uint32_t s
 #elif defined( DIFFUSE_SHADE )
         if ( depth < max_depth ) {
             vector3 target = hit.point + hit.normal + randomInUnitSphere();
-            return 0.5f * _color_recursive( ray( hit.point, target - hit.point ), scene, depth + 1, max_depth );
+            return 0.5f * _color_recursive( ray( hit.point, target - hit.point ), scene, sceneSize, depth + 1, max_depth );
         } else {
             return vector3( 0, 0, 0 );
         }
