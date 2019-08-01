@@ -2,6 +2,11 @@
 //#define DIFFUSE_SHADE
 //#define NORMAL_SHADE
 
+// Use the built-in prng,
+// otherwise use a custom one.
+#define ISPC_RANDOM
+
+
 // TODO: a vector3 struct with operator overloading for +-*/
 typedef float<3> vector3;
 
@@ -130,18 +135,21 @@ static vector3 _reflect( vector3& v, vector3& normal );
 static bool    _refract( vector3& v, vector3& normal, float ni_over_nt, varying vector3* uniform refracted );
 static float   _schlick( float cosine, float refractionIndex );
 
-static inline void    _randomInit( uniform int seed );
+#ifdef ISPC_RANDOM
+static struct RNGState _rngstate;
+static inline void    _randomInit( uniform int32 seed );
+#else
+static inline void    _randomInit( varying unsigned int32 seed );
+#endif
+
 static inline vector3 _randomInUnitSphere();
 static inline vector3 _randomOnUnitDisk();
 static inline float   _random();
 
 
-static struct RNGState _rngstate;
-
-
 export void cameraInitISPC( uniform RenderGangContext * uniform ctx )
 {
-    print( "cameraInitISPC %f\n", ctx->blockID );
+    //print( "cameraInitISPC\n" );
 
     s_camera.origin.x      = ctx->camera_origin[0];
     s_camera.origin.y      = ctx->camera_origin[1];
@@ -182,22 +190,22 @@ export void cameraInitISPC( uniform RenderGangContext * uniform ctx )
     s_camera.vertical.y   = 2 * halfHeight * s_camera.focusDistance * s_camera.v.y;
     s_camera.vertical.z   = 2 * halfHeight * s_camera.focusDistance * s_camera.v.z;
 
-    print( "ISPC Camera(): fov % aspect % aperture % (%, %, %) -> (%, %, %) (focusDistance: %)\n",
-        s_camera.vfov,
-        s_camera.aspect,
-        s_camera.aperture,
-        s_camera.origin.x, s_camera.origin.y, s_camera.origin.z,
-        s_camera.lookat.x, s_camera.lookat.y, s_camera.lookat.z,
-        s_camera.focusDistance
-        );
+    //print( "ISPC Camera(): \nfov % \naspect % \naperture % \n(%, %, %) -> (%, %, %) \nfocusDistance: %\n",
+    //    s_camera.vfov,
+    //    s_camera.aspect,
+    //    s_camera.aperture,
+    //    s_camera.origin.x, s_camera.origin.y, s_camera.origin.z,
+    //    s_camera.lookat.x, s_camera.lookat.y, s_camera.lookat.z,
+    //    s_camera.focusDistance
+    //    );
 
-    print( "u[%, %, %] v[%, %, %] w[%, %, %] horizontal[%, %, %] vertical[%, %, %]\n",
-        s_camera.u.x, s_camera.u.y, s_camera.u.z,
-        s_camera.v.x, s_camera.v.y, s_camera.v.z,
-        s_camera.w.x, s_camera.w.y, s_camera.w.z,
-        s_camera.horizontal.x, s_camera.horizontal.y, s_camera.horizontal.z,
-        s_camera.vertical.x, s_camera.vertical.y, s_camera.vertical.z
-    );
+    //print( "u[%, %, %] \nv[%, %, %] \nw[%, %, %] \nhorizontal[%, %, %] \nvertical[%, %, %]\n",
+    //    s_camera.u.x, s_camera.u.y, s_camera.u.z,
+    //    s_camera.v.x, s_camera.v.y, s_camera.v.z,
+    //    s_camera.w.x, s_camera.w.y, s_camera.w.z,
+    //    s_camera.horizontal.x, s_camera.horizontal.y, s_camera.horizontal.z,
+    //    s_camera.vertical.x, s_camera.vertical.y, s_camera.vertical.z
+    //);
 }
 
 
@@ -205,7 +213,11 @@ export uniform bool renderISPC( uniform RenderGangContext * uniform ctx )
 {
     //print( "renderISPC: blockID % of %\n", ctx->blockID, ctx->totalBlocks );
 
+#ifdef ISPC_RANDOM
     _randomInit( ctx->blockID );
+#else
+    _randomInit( programIndex * ctx->blockID * ctx->xOffset * ctx->yOffset );
+#endif
 
     for ( int y = ctx->yOffset; y < ctx->yOffset + ctx->blockSize; y += 1 )
     {
@@ -215,14 +227,14 @@ export uniform bool renderISPC( uniform RenderGangContext * uniform ctx )
             if ( x >= ctx->cols || y >= ctx->rows )
                 return true;
 
-            if ( ctx->debug && ( y == ctx->yOffset || y == ctx->yOffset + ctx->blockSize - 1 || x == ctx->xOffset || x == ctx->xOffset + ctx->blockSize - 1 ) ) {
-                ctx->framebuffer[ y * ctx->cols + x ] = 0xFF000000;
-                continue;
-            }
+            //if ( ctx->debug && ( y == ctx->yOffset || y == ctx->yOffset + ctx->blockSize - 1 || x == ctx->xOffset || x == ctx->xOffset + ctx->blockSize - 1 ) ) {
+            //    ctx->framebuffer[ y * ctx->cols + x ] = 0xFF000000;
+            //    continue;
+            //}
 
             unsigned int32 p = y * ctx->cols + x;
 
-            vector3  color = { 0, 0, 0 };
+            vector3 color = { 0, 0, 0 };
 
             for ( unsigned int32 s = 0; s < ctx->num_aa_samples; s++ )
             {
@@ -232,7 +244,6 @@ export uniform bool renderISPC( uniform RenderGangContext * uniform ctx )
                 ray r = _cameraGetRay( u, v );
 
                 vector3 _sample  = _color( r, ctx->scene, ctx->sceneSize, ctx->max_ray_depth );
-                //vector3 _sample = _sky( u, v );
                 //vector3 _sample = _background( r );
                 //vector3 _sample = _gradient( u, v );
                 //vector3 _sample = _randomColor( u, v );
@@ -405,11 +416,19 @@ static vector3 _color( ray& r, const sphere_t* scene, unsigned int32 sceneSize, 
 static bool _sphereHit( ray& r, const uniform sphere_t* varying sphere, float t_min, float t_max, varying hit_info* uniform p_hit )
 {
     assert( p_hit );
+    
+    //float center_x;
+    //float center_y;
+    //float center_z;
+    //aos_to_soa3(&sphere->center, &center_x, &center_y, &center_z);
 
     vector3 oc;
     oc.x = r.origin.x - sphere->center[0];
     oc.y = r.origin.y - sphere->center[1];
     oc.z = r.origin.z - sphere->center[2];
+    //oc.x = r.origin.x - center_x;
+    //oc.y = r.origin.y - center_y;
+    //oc.z = r.origin.z - center_z;
 
     float   a  = _dot( r.direction, r.direction );
     float   b  = _dot( oc, r.direction );
@@ -445,7 +464,6 @@ static bool _sphereHit( ray& r, const uniform sphere_t* varying sphere, float t_
 }
 
 
-//static bool _sceneHit( ray& r, sphere_t* scene, unsigned int32 sceneSize, float t_min, float t_max, hit_info* p_hit );
 static bool  _sceneHit( ray& r, const uniform sphere_t* varying scene, unsigned int32 sceneSize, float t_min, float t_max, varying hit_info* uniform p_hit )
 {
     bool     rval         = false;
@@ -476,10 +494,6 @@ static bool  _sceneHit( ray& r, const uniform sphere_t* varying scene, unsigned 
 static bool _materialScatter( ray& r, material_t& m, hit_info& hit, varying vector3 * uniform p_attenuation, varying ray* uniform p_scattered )
 {
     bool rval = false;
-    //vector3 _attenuation;
-    //_attenuation.x = attenuation[0];
-    //_attenuation.y = attenuation[1];
-    //_attenuation.z = attenuation[2];
 
     switch ( m.type ) {
         case MATERIAL_DIFFUSE:
@@ -505,7 +519,6 @@ static bool _materialScatter( ray& r, material_t& m, hit_info& hit, varying vect
 
 static bool _diffuseScatter( ray& r, material_t& d, hit_info& hit, varying vector3 * uniform p_attenuation, varying ray* uniform p_scattered )
 {
-    //vector3 target    = hit->point + hit->normal + randomInUnitSphere();
     vector3 target    = hit.point + hit.normal;
     target = target + _randomInUnitSphere();
     vector3 hit_point = hit.point;
@@ -513,9 +526,6 @@ static bool _diffuseScatter( ray& r, material_t& d, hit_info& hit, varying vecto
     ray scatter;
     scatter.origin = hit.point;
     scatter.direction = target.xyz - hit_point.xyz;
-
-    //- *scattered        = ray( hit.point, target - hit.point );
-    //- *attenuation      = d.albedo;
 
     *p_scattered     = scatter;
     p_attenuation->r = d.albedo[0];
@@ -530,9 +540,6 @@ static bool _metalScatter( ray& r, material_t& m, hit_info& hit, varying vector3
 {
     vector3 direction = _normalize( r.direction );
     vector3 reflected = _reflect( direction, hit.normal );
-
-    //- *scattered        = ray( hit.point, reflected + ( m.blur * randomInUnitSphere() ) );
-    //- *attenuation      = m.albedo;
 
     ray scatter;
     scatter.origin = hit.point;
@@ -624,18 +631,79 @@ static ray _cameraGetRay( float s, float t )
 // Helper functions
 //
 
+static double _dseed = 1.0;
+static unsigned int32 _seed;
+
+#ifdef ISPC_RANDOM
+
 static inline void _randomInit( uniform int seed )
 {
-    varying int _seed = (seed << programIndex ) + programIndex;
-    seed_rng( &_rngstate, _seed );
+    varying int s = (seed << programIndex ) + programIndex;
+    seed_rng( &_rngstate, s );
+
+    _dseed = seed;
 }
 
+#else
 
+static inline void _randomInit( varying unsigned int32 seed )
+{
+    _seed = seed;
+}
+
+#endif
+
+static inline float drand48( float u, float v )
+{
+    double d     = 12.9898 * u + 78.233 * v;
+    double x     = sin( d ) * 43758.5453;
+    double fract = x - floor( x );
+    double rval  = 2.0 * (fract)-1.0;
+    rval         = ( 1.0 - abs( rval * _dseed ) );
+
+    _dseed = rval;
+
+    return rval;
+}
+
+static inline float xorrand( unsigned int32 seed )
+{
+    // Xorshift algorithm from George Marsaglia's paper
+    seed ^= ( seed << 13 );
+    seed ^= ( seed >> 17 );
+    seed ^= ( seed << 5 );
+
+    return seed;
+}
+
+static inline unsigned int32 wanghash( unsigned int32 seed )
+{
+    seed = ( seed ^ 61 ) ^ ( seed >> 16 );
+    seed *= 9;
+    seed = seed ^ ( seed >> 4 );
+    seed *= 0x27d4eb2d;
+    seed = seed ^ ( seed >> 15 );
+    return seed;
+}
+
+#ifdef ISPC_RANDOM
 static inline float _random()
 {
     return frandom(&_rngstate);
 }
+#else
+static inline float _random()
+{
+    //return drand48( _seed * programIndex, _seed * programIndex / programCount );
 
+    _seed = wanghash( _seed );
+    _seed = xorrand( _seed );
+
+    // Generate a random float in [0, 1)...
+    float f = ((float)_seed ) * ( 1.0 / 4294967296.0 );
+    return f;
+}
+#endif
 
 static inline float _length( vector3& v )
 {

@@ -27,7 +27,8 @@ const unsigned int ROWS = 1000;
 // NOTE: if a CUDA program takes > 2 seconds to execute, Windows may kill it.
 // You can change this in the Nvidia control panel, but it
 // requires Admin privileges and reboot.
-const unsigned int NUM_AA_SAMPLES = 25;
+// NOTE: for ISPC this should be a multiple of 8.
+const unsigned int NUM_AA_SAMPLES = 24;
 
 // Max bounces per ray
 const unsigned int MAX_RAY_DEPTH = 5;
